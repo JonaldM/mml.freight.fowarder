@@ -190,6 +190,28 @@ freight.tracking.event
 - **3PL handoff**: graceful no-op if `stock_3pl_core` not installed or no active connector for the PO's warehouse
 - **OAuth tokens**: cached on carrier record, refreshed 120s before expiry, cron runs every 8 minutes
 
+### Multi-warehouse / multi-provider routing
+
+Each `3pl.connector` is scoped to one `stock.warehouse`. When a booking is confirmed the system resolves the correct connector using a **specific-then-catch-all** strategy:
+
+1. **Specific match** — find an active connector for the PO's warehouse whose `product_category_ids` includes at least one of the PO's product categories; ordered by `priority asc`.
+2. **Catch-all fallback** — find an active connector for the warehouse with no `product_category_ids` configured; ordered by `priority asc`.
+3. **No-op** — if neither search returns a connector, the handoff is skipped and logged.
+
+This supports n warehouses × n providers. Example configuration:
+
+| Warehouse | Connector | Priority | Categories |
+|-----------|-----------|----------|------------|
+| Hamilton WH | Mainfreight Hamilton | 10 | *(empty — catch-all)* |
+| Christchurch WH | [ChCh 3PL] | 10 | *(empty — catch-all)* |
+| Hamilton WH | CoolStore Hamilton | 10 | Chilled, Frozen |
+
+- Ambient PO → Hamilton WH → no category match → falls back to Mainfreight Hamilton ✓
+- Chilled PO → Hamilton WH → category match → CoolStore Hamilton ✓
+- Any PO → Christchurch WH → ChCh 3PL ✓
+
+**One PO per destination.** Split orders by city (Hamilton 60 units / Christchurch 40 units) onto separate POs, each with its own freight tender and warehouse picking type. Purchase Agreements can hold the total negotiated quantity across both POs.
+
 ### Adding a new carrier adapter
 
 1. Create a new module: `mml_freight_<carrier>/`
@@ -234,7 +256,8 @@ class FlexportAdapter(FreightAdapterBase):
 | Phase | Status | Scope |
 |-------|--------|-------|
 | Phase 1 | **Complete** | Models, UI, mock adapter, 3PL handoff stub, full test suite |
-| Phase 2 | Planned | Live DSV Generic API (quote + booking), tracking sync |
+| Phase 1.5 | **Complete** | Multi-warehouse routing: `priority` + `product_category_ids` on `3pl.connector`; specific-then-catch-all connector selection |
+| Phase 2 | Planned | Live DSV Generic API (quote + booking), tracking sync, inward_order payload builder |
 | Phase 3 | Planned | Auto-tender from PO on confirm, selection algorithms, DSV webhooks |
 | Phase 4 | Planned | DSV labels/PODs, Mainfreight adapter, landed cost integration |
 | Phase 5 | Planned | K+N adapter, analytics dashboard, reliability scoring |

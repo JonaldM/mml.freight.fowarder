@@ -104,10 +104,15 @@ class FreightBooking(models.Model):
     def _queue_3pl_inward_order(self):
         """Queue an inward order notice via stock_3pl_core message queue.
 
-        Graceful no-op if stock_3pl_core is not installed or no connector
-        is configured for the purchase order's warehouse.
+        Connector selection uses a two-step strategy:
+        1. Specific match: active connector for this warehouse that explicitly handles
+           one or more of the PO's product categories (ordered by priority asc).
+        2. Catch-all fallback: active connector with no product categories configured
+           (ordered by priority asc).
+
+        Graceful no-op if stock_3pl_core is not installed or no matching connector found.
         """
-        if 'stock_3pl_core' not in self.env.registry._init_modules:
+        if '3pl.connector' not in self.env:
             _logger.info(
                 'freight.booking %s: stock_3pl_core not installed — skipping 3PL handoff',
                 self.name,
@@ -119,16 +124,19 @@ class FreightBooking(models.Model):
         warehouse = po.picking_type_id.warehouse_id if po.picking_type_id else False
         if not warehouse:
             return
-        connector = self.env['3pl.connector'].search([
-            ('warehouse_id', '=', warehouse.id),
-            ('active', '=', True),
-        ], limit=1)
+
+        connector = self._resolve_3pl_connector(warehouse, po)
         if not connector:
             _logger.info(
                 'freight.booking %s: no active 3PL connector for warehouse %s — skipping',
                 self.name, warehouse.name,
             )
             return
+
+        # Message is created in draft with no payload — intentional Phase 2 scaffolding.
+        # The inward_order payload (XML/JSON) will be built and the message advanced to
+        # 'queued' by the document-builder step implemented in Phase 2. Until then the
+        # message sits in draft and the cron will not attempt to send it.
         msg = self.env['3pl.message'].create({
             'connector_id': connector.id,
             'direction': 'outbound',
@@ -139,8 +147,38 @@ class FreightBooking(models.Model):
         })
         self.tpl_message_id = msg
         _logger.info(
-            'freight.booking %s: queued 3pl.message %s for PO %s',
-            self.name, msg.id, po.name,
+            'freight.booking %s: queued 3pl.message %s for PO %s via connector %s',
+            self.name, msg.id, po.name, connector.name,
+        )
+
+    def _resolve_3pl_connector(self, warehouse, po):
+        """Return the best-matching active 3pl.connector for the given warehouse and PO.
+
+        Strategy:
+        - If the PO has product categories, try a connector that explicitly lists one of
+          those categories (specific match), ordered by priority asc.
+        - Fall back to any active catch-all connector (product_category_ids is empty),
+          ordered by priority asc.
+        - Returns False if no connector is found.
+        """
+        po_categ_ids = po.order_line.mapped('product_id.categ_id').ids
+        base_domain = [('warehouse_id', '=', warehouse.id), ('active', '=', True)]
+
+        if po_categ_ids:
+            connector = self.env['3pl.connector'].search(
+                base_domain + [('product_category_ids', 'in', po_categ_ids)],
+                order='priority asc',
+                limit=1,
+            )
+            if connector:
+                return connector
+
+        # ('product_category_ids', '=', False) is the Odoo ORM idiom for
+        # "this Many2many relation has no linked records" (catch-all connector).
+        return self.env['3pl.connector'].search(
+            base_domain + [('product_category_ids', '=', False)],
+            order='priority asc',
+            limit=1,
         )
 
     def _handle_dsv_tracking_webhook(self, carrier, body):
