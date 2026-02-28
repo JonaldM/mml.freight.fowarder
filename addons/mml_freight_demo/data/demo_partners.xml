@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="partner_enduro_pet_au" model="res.partner">
+        <field name="name">Enduro Pet Pty Ltd</field>
+        <field name="street">12 Warehouse Drive</field>
+        <field name="city">Melbourne</field>
+        <field name="zip">3000</field>
+        <field name="country_id" ref="base.au"/>
+        <field name="supplier_rank">1</field>
+        <field name="company_type">company</field>
+    </record>
+</odoo>

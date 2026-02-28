@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_freight_booking_list" model="ir.ui.view">
+        <field name="name">freight.booking.list</field>
+        <field name="model">freight.booking</field>
+        <field name="arch" type="xml">
+            <list string="Freight Bookings" decoration-success="state == 'delivered'" decoration-warning="state == 'in_transit'">
+                <field name="name"/>
+                <field name="carrier_id"/>
+                <field name="purchase_order_id"/>
+                <field name="carrier_booking_id"/>
+                <field name="transport_mode"/>
+                <field name="booked_rate"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="eta"/>
+                <field name="current_status"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_freight_booking_form" model="ir.ui.view">
+        <field name="name">freight.booking.form</field>
+        <field name="model">freight.booking</field>
+        <field name="arch" type="xml">
+            <form string="Freight Booking">
+                <header>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state in ('delivered','received','cancelled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,picked_up,in_transit,arrived_port,delivered,received"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Booking">
+                            <field name="carrier_id"/>
+                            <field name="purchase_order_id"/>
+                            <field name="tender_id"/>
+                            <field name="carrier_booking_id"/>
+                            <field name="carrier_tracking_url" widget="url"/>
+                        </group>
+                        <group string="Tracking">
+                            <field name="current_status"/>
+                            <field name="eta"/>
+                            <field name="tpl_message_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Transport">
+                            <field name="transport_mode"/>
+                            <field name="vessel_name"/>
+                            <field name="container_number"/>
+                            <field name="bill_of_lading"/>
+                            <field name="awb_number"/>
+                        </group>
+                        <group string="Financials">
+                            <field name="booked_rate"/>
+                            <field name="actual_rate"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="invoice_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Tracking Events">
+                            <field name="tracking_event_ids" readonly="1">
+                                <list><field name="event_date"/><field name="status"/><field name="location"/><field name="description"/></list>
+                            </field>
+                        </page>
+                        <page string="Documents">
+                            <field name="document_ids">
+                                <list><field name="doc_type"/><field name="attachment_id"/><field name="carrier_doc_ref"/></list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_freight_booking" model="ir.actions.act_window">
+        <field name="name">Freight Bookings</field>
+        <field name="res_model">freight.booking</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

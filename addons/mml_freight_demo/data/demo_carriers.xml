@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="carrier_dsv_road_nz" model="delivery.carrier">
+        <field name="name">DSV Road NZ</field>
+        <field name="delivery_type">dsv_generic</field>
+        <field name="auto_tender">True</field>
+        <field name="transport_modes">road</field>
+        <field name="x_dsv_environment">demo</field>
+        <field name="x_dsv_product_name">road</field>
+        <field name="reliability_score">78.0</field>
+        <field name="product_id" ref="delivery.product_product_delivery"/>
+    </record>
+    <record id="carrier_knplus_sea_lcl" model="delivery.carrier">
+        <field name="name">K+N Sea LCL Global</field>
+        <field name="delivery_type">knplus</field>
+        <field name="auto_tender">False</field>
+        <field name="transport_modes">sea_lcl</field>
+        <field name="reliability_score">82.0</field>
+        <field name="product_id" ref="delivery.product_product_delivery"/>
+    </record>
+</odoo>

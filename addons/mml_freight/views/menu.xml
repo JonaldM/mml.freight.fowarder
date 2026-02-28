@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_freight_root" name="Freight" sequence="50"
+              parent="stock.menu_stock_root" groups="stock.group_stock_user"/>
+    <menuitem id="menu_freight_tenders" name="Freight Tenders"
+              parent="menu_freight_root" action="action_freight_tender" sequence="10"/>
+    <menuitem id="menu_freight_bookings" name="Freight Bookings"
+              parent="menu_freight_root" action="action_freight_booking" sequence="20"/>
+    <menuitem id="menu_freight_carriers" name="Freight Carriers"
+              parent="menu_freight_root" action="action_freight_carrier" sequence="30"/>
+</odoo>

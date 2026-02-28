@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="seq_freight_tender" model="ir.sequence">
+        <field name="name">Freight Tender</field>
+        <field name="code">freight.tender</field>
+        <field name="prefix">FT/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_freight_booking" model="ir.sequence">
+        <field name="name">Freight Booking</field>
+        <field name="code">freight.booking</field>
+        <field name="prefix">FB/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

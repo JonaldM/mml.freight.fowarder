@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_freight_tender_list" model="ir.ui.view">
+        <field name="name">freight.tender.list</field>
+        <field name="model">freight.tender</field>
+        <field name="arch" type="xml">
+            <list string="Freight Tenders" decoration-info="state == 'draft'" decoration-success="state == 'booked'">
+                <field name="name"/>
+                <field name="purchase_order_id"/>
+                <field name="origin_partner_id"/>
+                <field name="incoterm_id"/>
+                <field name="chargeable_weight_kg"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_freight_tender_form" model="ir.ui.view">
+        <field name="name">freight.tender.form</field>
+        <field name="model">freight.tender</field>
+        <field name="arch" type="xml">
+            <form string="Freight Tender">
+                <header>
+                    <button name="action_request_quotes" string="Request Quotes" type="object" class="btn-primary" invisible="state not in ('draft', 'partial')"/>
+                    <button name="action_auto_select" string="Auto-Select Best" type="object" invisible="state not in ('quoted', 'partial')"/>
+                    <button name="action_book" string="Book Selected" type="object" class="btn-primary" invisible="state != 'selected'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state in ('booked', 'cancelled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,requesting,quoted,selected,booked"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Shipment">
+                            <field name="purchase_order_id"/>
+                            <field name="incoterm_id"/>
+                            <field name="freight_mode_preference"/>
+                            <field name="selection_mode"/>
+                            <field name="tender_expiry"/>
+                        </group>
+                        <group string="Cargo Summary">
+                            <field name="total_weight_kg"/>
+                            <field name="total_cbm"/>
+                            <field name="chargeable_weight_kg"/>
+                            <field name="total_packages"/>
+                            <field name="contains_dg" widget="boolean_toggle"/>
+                            <field name="goods_value"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Origin">
+                            <field name="origin_partner_id"/>
+                            <field name="origin_country_id"/>
+                            <field name="origin_port"/>
+                            <field name="requested_pickup_date"/>
+                        </group>
+                        <group string="Destination">
+                            <field name="dest_partner_id"/>
+                            <field name="dest_country_id"/>
+                            <field name="dest_port"/>
+                            <field name="requested_delivery_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Packages">
+                            <field name="package_line_ids">
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="description"/>
+                                    <field name="quantity"/>
+                                    <field name="weight_kg"/>
+                                    <field name="length_cm"/>
+                                    <field name="width_cm"/>
+                                    <field name="height_cm"/>
+                                    <field name="volume_m3" readonly="1"/>
+                                    <field name="hs_code"/>
+                                    <field name="is_dangerous"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Quotes">
+                            <field name="quote_line_ids">
+                                <list decoration-success="is_cheapest == True" decoration-info="is_fastest == True" decoration-muted="state == 'error'">
+                                    <field name="carrier_id"/>
+                                    <field name="service_name"/>
+                                    <field name="transport_mode"/>
+                                    <field name="total_rate_nzd"/>
+                                    <field name="cost_vs_cheapest_pct" string="% vs Cheapest"/>
+                                    <field name="estimated_transit_days"/>
+                                    <field name="state" widget="badge"/>
+                                    <field name="is_cheapest" invisible="1"/>
+                                    <field name="is_fastest" invisible="1"/>
+                                </list>
+                            </field>
+                            <group>
+                                <field name="selected_quote_id"/>
+                                <field name="selection_reason"/>
+                                <field name="cheapest_quote_id" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_freight_tender" model="ir.actions.act_window">
+        <field name="name">Freight Tenders</field>
+        <field name="res_model">freight.tender</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

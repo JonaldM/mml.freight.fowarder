@@ -1,0 +1,16 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_freight_carrier_user,freight.carrier user,delivery.model_delivery_carrier,stock.group_stock_user,1,0,0,0
+access_freight_carrier_manager,freight.carrier manager,delivery.model_delivery_carrier,stock.group_stock_manager,1,1,1,1
+access_freight_tender_user,freight.tender user,model_freight_tender,stock.group_stock_user,1,1,1,0
+access_freight_tender_manager,freight.tender manager,model_freight_tender,stock.group_stock_manager,1,1,1,1
+access_freight_tender_package_user,freight.tender.package user,model_freight_tender_package,stock.group_stock_user,1,1,1,0
+access_freight_tender_package_manager,freight.tender.package manager,model_freight_tender_package,stock.group_stock_manager,1,1,1,1
+access_freight_tender_quote_user,freight.tender.quote user,model_freight_tender_quote,stock.group_stock_user,1,1,1,0
+access_freight_tender_quote_manager,freight.tender.quote manager,model_freight_tender_quote,stock.group_stock_manager,1,1,1,1
+access_freight_booking_user,freight.booking user,model_freight_booking,stock.group_stock_user,1,0,0,0
+access_freight_booking_manager,freight.booking manager,model_freight_booking,stock.group_stock_manager,1,1,1,1
+access_freight_tracking_event_user,freight.tracking.event user,model_freight_tracking_event,stock.group_stock_user,1,0,0,0
+access_freight_tracking_event_manager,freight.tracking.event manager,model_freight_tracking_event,stock.group_stock_manager,1,1,1,1
+access_freight_document_user,freight.document user,model_freight_document,stock.group_stock_user,1,0,0,0
+access_freight_document_manager,freight.document manager,model_freight_document,stock.group_stock_manager,1,1,1,1
+access_freight_adapter_registry,freight.adapter.registry all,model_freight_adapter_registry,base.group_user,1,0,0,0

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="po_enduro_ready_to_tender" model="purchase.order">
+        <field name="name">PO/DEMO/001</field>
+        <field name="partner_id" ref="partner_enduro_pet_au"/>
+        <field name="incoterm_id" ref="account.incoterm_fob"/>
+        <field name="cargo_ready_date" eval="(datetime.date.today() + relativedelta(days=15)).strftime('%Y-%m-%d')"/>
+        <field name="required_delivery_date" eval="(datetime.date.today() + relativedelta(days=30)).strftime('%Y-%m-%d')"/>
+        <field name="freight_mode_preference">sea</field>
+        <!-- Order lines omitted — add products via the UI after install -->
+    </record>
+</odoo>
