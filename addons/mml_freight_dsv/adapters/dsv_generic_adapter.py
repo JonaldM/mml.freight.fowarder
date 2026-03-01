@@ -113,10 +113,48 @@ class DsvGenericAdapter(FreightAdapterBase):
     # ------------------------------------------------------------------
 
     def create_booking(self, tender, selected_quote):
-        raise NotImplementedError('Implemented in Task 7')
+        """Create DSV draft booking (autobook=False). Raises UserError on any API failure."""
+        from odoo.exceptions import UserError
+        from odoo.addons.mml_freight_dsv.adapters.dsv_booking_builder import build_booking_payload
+        token   = get_token(self.carrier)
+        payload = build_booking_payload(tender, selected_quote, self.carrier)
+        try:
+            resp = self._post_with_retry(DSV_BOOKING_URL, payload, token)
+        except Exception as e:
+            raise UserError(f'DSV booking API error: {e}') from e
+        if not resp.ok:
+            raise UserError(f'DSV booking failed (HTTP {resp.status_code}): {resp.text[:200]}')
+        data = resp.json()
+        return {
+            'carrier_booking_id':           data.get('bookingId', ''),
+            'carrier_shipment_id':          data.get('shipmentId', ''),
+            'carrier_tracking_url':         data.get('trackingUrl', ''),
+            'requires_manual_confirmation': True,
+        }
 
     def cancel_booking(self, booking):
-        raise NotImplementedError('Implemented in Task 7')
+        """Cancel DSV draft booking via DELETE. Confirmed → warn only. 404 → treat as success."""
+        if booking.state == 'confirmed':
+            booking.message_post(
+                body='This booking is already confirmed with DSV. '
+                     'Contact DSV directly to cancel — cancellation fees may apply.'
+            )
+            return
+        bk_id = booking.carrier_booking_id
+        if not bk_id:
+            return
+        token = get_token(self.carrier)
+        url   = f'{DSV_BOOKING_URL}/{bk_id}'
+        try:
+            resp = requests.delete(url, headers=self._headers(token), timeout=30)
+        except Exception as e:
+            _logger.warning('DSV cancel booking %s: request error %s', bk_id, e)
+            return
+        if resp.status_code == 404:
+            _logger.info('DSV cancel %s: 404 (already gone) — treating as success', bk_id)
+            return
+        if not resp.ok:
+            _logger.warning('DSV cancel booking %s: HTTP %s', bk_id, resp.status_code)
 
     # ------------------------------------------------------------------
     # confirm_booking — implemented in Task 9

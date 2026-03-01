@@ -21,3 +21,43 @@ class TestTenderLifecycle(TransactionCase):
     def test_auto_select_no_quotes_raises(self):
         t2 = self.env['freight.tender'].create({'purchase_order_id': self.tender.purchase_order_id.id, 'company_id': self.env.company.id, 'currency_id': self.env.company.currency_id.id, 'state': 'quoted', 'selection_mode': 'cheapest'})
         with self.assertRaises(UserError): t2.action_auto_select()
+
+    def test_booking_stays_draft_when_requires_manual_confirmation(self):
+        """When adapter returns requires_manual_confirmation=True, booking must not auto-confirm."""
+        from unittest.mock import patch, MagicMock
+        # Create a delivery.carrier to use as the carrier for the quote
+        carrier = self.env['delivery.carrier'].create({
+            'name': 'Test Carrier',
+            'product_id': self.env['product.product'].search([], limit=1).id,
+        })
+        nzd = self.env['res.currency'].search([('name', '=', 'NZD')], limit=1) or self.env.company.currency_id
+        # Create a tender in 'selected' state with a selected quote
+        tender = self.env['freight.tender'].create({
+            'purchase_order_id': self.tender.purchase_order_id.id,
+            'company_id': self.env.company.id,
+            'currency_id': nzd.id,
+        })
+        quote = self.env['freight.tender.quote'].create({
+            'tender_id': tender.id,
+            'carrier_id': carrier.id,
+            'state': 'received',
+            'currency_id': nzd.id,
+            'transport_mode': 'road',
+        })
+        tender.write({'state': 'selected', 'selected_quote_id': quote.id})
+        mock_adapter = MagicMock()
+        mock_adapter.create_booking.return_value = {
+            'carrier_booking_id':           'BK-DRAFT-TEST',
+            'carrier_shipment_id':          'SH-001',
+            'carrier_tracking_url':         '',
+            'requires_manual_confirmation': True,
+        }
+        with patch.object(
+            type(self.env['freight.adapter.registry']), 'get_adapter',
+            return_value=mock_adapter,
+        ):
+            tender.action_book()
+        self.assertEqual(
+            tender.booking_id.state, 'draft',
+            'Booking must stay in draft when requires_manual_confirmation=True',
+        )

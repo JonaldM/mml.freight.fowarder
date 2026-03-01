@@ -127,3 +127,30 @@ class TestDsvGenericAdapter(TransactionCase):
             results = self._adapter().request_quote(self.tender)
         self.assertEqual(len(results), 1)
         self.assertTrue(results[0].get('_error'))
+
+    # --- create_booking ---
+
+    def _quote(self):
+        nzd = self.env['res.currency'].search([('name', '=', 'NZD')], limit=1) \
+              or self.env.company.currency_id
+        return self.env['freight.tender.quote'].create({
+            'tender_id': self.tender.id, 'carrier_id': self.carrier.id,
+            'state': 'received', 'currency_id': nzd.id,
+            'carrier_quote_ref': 'QREF99', 'transport_mode': 'sea_lcl',
+        })
+
+    def test_create_booking_returns_refs(self):
+        dsv_data = {'bookingId': 'DSVBK001', 'shipmentId': 'DSVSH001'}
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
+            with patch('requests.post', return_value=_resp(200, dsv_data)):
+                result = self._adapter().create_booking(self.tender, self._quote())
+        self.assertEqual(result['carrier_booking_id'], 'DSVBK001')
+        self.assertEqual(result['carrier_shipment_id'], 'DSVSH001')
+        self.assertTrue(result['requires_manual_confirmation'])
+
+    def test_create_booking_422_raises_user_error(self):
+        from odoo.exceptions import UserError
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
+            with patch('requests.post', return_value=_resp(422, {'error': 'invalid payload'})):
+                with self.assertRaises(UserError):
+                    self._adapter().create_booking(self.tender, self._quote())

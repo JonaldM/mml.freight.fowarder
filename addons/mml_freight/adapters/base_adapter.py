@@ -46,3 +46,7 @@ class FreightAdapterBase(ABC):
     def get_label(self, booking):
         """Return label bytes or None. Optional."""
         return None
+
+    def cancel_booking(self, booking):
+        """Cancel a booking with the carrier. Default is a no-op. Override where supported."""
+        pass

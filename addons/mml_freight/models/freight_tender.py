@@ -239,30 +239,36 @@ class FreightTender(models.Model):
             raise UserError('Tender must be in Selected state to book.')
 
         registry = self.env['freight.adapter.registry']
-        adapter = registry.get_adapter(self.selected_quote_id.carrier_id)
+        adapter  = registry.get_adapter(self.selected_quote_id.carrier_id)
         if not adapter:
             raise UserError('No adapter available for selected carrier.')
+
+        # Cancel any existing draft booking before creating a new one
+        if self.booking_id and self.booking_id.state == 'draft' and self.booking_id.carrier_booking_id:
+            prior_adapter = registry.get_adapter(self.booking_id.carrier_id)
+            if prior_adapter:
+                prior_adapter.cancel_booking(self.booking_id)
 
         result = adapter.create_booking(self, self.selected_quote_id)
 
         booking = self.env['freight.booking'].create({
-            'tender_id': self.id,
-            'carrier_id': self.selected_quote_id.carrier_id.id,
-            'purchase_order_id': self.purchase_order_id.id,
-            'currency_id': self.selected_quote_id.currency_id.id,
-            'booked_rate': self.selected_quote_id.total_rate,
-            'transport_mode': self.selected_quote_id.transport_mode,
-            'carrier_booking_id': result.get('carrier_booking_id', ''),
-            'carrier_shipment_id': result.get('carrier_shipment_id', ''),
+            'tender_id':            self.id,
+            'carrier_id':           self.selected_quote_id.carrier_id.id,
+            'purchase_order_id':    self.purchase_order_id.id,
+            'currency_id':          self.selected_quote_id.currency_id.id,
+            'booked_rate':          self.selected_quote_id.total_rate,
+            'transport_mode':       self.selected_quote_id.transport_mode,
+            'carrier_booking_id':   result.get('carrier_booking_id', ''),
+            'carrier_shipment_id':  result.get('carrier_shipment_id', ''),
             'carrier_tracking_url': result.get('carrier_tracking_url', ''),
-            'state': 'draft',
+            'state':                'draft',
         })
-        booking.action_confirm()
 
-        self.write({
-            'booking_id': booking.id,
-            'state': 'booked',
-        })
+        # Only auto-confirm if the adapter does not require manual confirmation
+        if not result.get('requires_manual_confirmation'):
+            booking.action_confirm()
+
+        self.write({'booking_id': booking.id, 'state': 'booked'})
         if self.purchase_order_id:
             self.purchase_order_id.freight_tender_id = self
         return True
