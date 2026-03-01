@@ -1,3 +1,4 @@
+import json
 import logging
 import requests
 from odoo.addons.mml_freight.adapters.base_adapter import FreightAdapterBase
@@ -216,7 +217,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         try:
             resp = requests.get(url, headers=self._headers(token), timeout=30)
         except Exception as e:
-            _logger.warning('DSV tracking GET failed for %s: %s', booking.name, e)
+            _logger.warning('DSV tracking GET failed for %s: %s', booking.name, e, exc_info=True)
             return []
         if not resp.ok:
             _logger.warning('DSV tracking HTTP %s for %s', resp.status_code, booking.name)
@@ -230,7 +231,7 @@ class DsvGenericAdapter(FreightAdapterBase):
                 'status':      status,
                 'location':    raw.get('location', ''),
                 'description': raw.get('description', ''),
-                'raw_payload': str(raw),
+                'raw_payload': json.dumps(raw),
                 '_new_eta':    raw.get('estimatedDelivery', ''),
             })
         return events

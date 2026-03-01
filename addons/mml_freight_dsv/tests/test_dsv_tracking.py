@@ -87,3 +87,11 @@ class TestDsvTracking(TransactionCase):
                    side_effect=DsvAuthError('token fail')):
             events = self._adapter().get_tracking(self.booking)
         self.assertEqual(events, [])
+
+    def test_unknown_event_type_falls_back_to_lower(self):
+        """Unknown DSV event types fall back to lowercased string."""
+        data = {'events': [{'eventType': 'EXCEPTION_HOLD', 'eventDate': '2026-05-01T00:00:00Z'}]}
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
+            with patch('requests.get', return_value=_resp(200, data)):
+                events = self._adapter().get_tracking(self.booking)
+        self.assertEqual(events[0]['status'], 'exception_hold')
