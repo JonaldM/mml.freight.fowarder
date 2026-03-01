@@ -152,3 +152,33 @@ class PurchaseOrder(models.Model):
             'res_id': tender.id,
             'view_mode': 'form',
         }
+
+    def button_confirm(self):
+        """Override: auto-create freight tender when buyer controls the freight leg."""
+        result = super().button_confirm()
+        for po in self.filtered(lambda p: p.freight_responsibility == 'buyer'
+                                          and not p.freight_tender_id):
+            po._auto_create_freight_tender()
+        return result
+
+    def _auto_create_freight_tender(self):
+        """Create a freight tender and fan out quote requests. Errors post to chatter."""
+        self.ensure_one()
+        try:
+            self.action_request_freight_tender()   # creates tender + populates packages
+            tender = self.freight_tender_id
+            if tender:
+                tender.action_request_quotes()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(
+                'Auto-tender failed for PO %s: %s', self.name, e,
+            )
+            self.message_post(
+                body=(
+                    f'⚠️ Auto freight tender failed: {e}. '
+                    f'Please create a tender manually from the Freight tab.'
+                ),
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
+            )
