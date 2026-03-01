@@ -69,6 +69,10 @@ class TestDsvBookingPayload(TransactionCase):
         self.assertEqual(len(p['packages']), 1)
         self.assertEqual(p['packages'][0]['quantity'], 5)
 
+    def test_package_volume_mapped(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        self.assertAlmostEqual(p['packages'][0]['volume'], 0.12, places=6)
+
     def test_goods_description_from_package_descriptions(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
         self.assertIn('Widget', p['goodsDescription'])
