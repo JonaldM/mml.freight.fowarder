@@ -293,7 +293,9 @@ class FreightTender(models.Model):
             contract = winner.contract_id
 
             # Compute opportunity cost vs cheapest market quote
-            oc = winner.opportunity_cost_nzd  # positive = contract costs more than market
+            # OC = contracted rate vs cheapest available market rate (not winner's own market rate)
+            cheapest_market = received.sorted('total_rate_nzd')[0]
+            oc = winner.contracted_rate_total_nzd - cheapest_market.total_rate_nzd
 
             has_alert = oc > 0
             if has_alert:

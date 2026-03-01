@@ -67,6 +67,7 @@ class TestContractAwareSelection(TransactionCase):
             'selected_quote_id': False,
             'has_opportunity_cost_alert': False,
             'opportunity_cost_nzd': 0.0,
+            'selection_reason': False,
         })
 
     def test_contract_aware_selects_dsv(self):
@@ -102,6 +103,7 @@ class TestContractAwareSelection(TransactionCase):
         })
         booking.write({'state': 'confirmed'})
         self.contract.invalidate_recordset()
+        self.tender.quote_line_ids.invalidate_recordset()
         self.tender.action_auto_select()
         self.assertEqual(self.tender.selected_quote_id, self.q_kn)
         self.assertFalse(self.tender.has_opportunity_cost_alert)
