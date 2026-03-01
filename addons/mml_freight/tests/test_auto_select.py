@@ -8,7 +8,7 @@ class TestAutoSelect(TransactionCase):
         p = cls.env['res.partner'].create({'name': 'AS Supplier'})
         po = cls.env['purchase.order'].create({'partner_id': p.id})
         nzd = cls.env['res.currency'].search([('name', '=', 'NZD')], limit=1) or cls.env.company.currency_id
-        cls.tender = cls.env['freight.tender'].create({'purchase_order_id': po.id, 'company_id': cls.env.company.id, 'currency_id': nzd.id, 'state': 'quoted'})
+        cls.tender = cls.env['freight.tender'].create({'po_ids': [(4, po.id)], 'company_id': cls.env.company.id, 'currency_id': nzd.id, 'state': 'quoted'})
         prod = cls.env['product.product'].search([], limit=1)
         c1 = cls.env['delivery.carrier'].create({'name': 'Slow', 'product_id': prod.id, 'delivery_type': 'fixed', 'reliability_score': 80.0})
         c2 = cls.env['delivery.carrier'].create({'name': 'Fast', 'product_id': prod.id, 'delivery_type': 'fixed', 'reliability_score': 90.0})

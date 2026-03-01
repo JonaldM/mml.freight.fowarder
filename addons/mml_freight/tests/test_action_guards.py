@@ -16,7 +16,7 @@ class TestActionGuards(TransactionCase):
         supplier = cls.env['res.partner'].create({'name': 'Guard Supplier'})
         cls.po = cls.env['purchase.order'].create({'partner_id': supplier.id})
         cls.tender = cls.env['freight.tender'].create({
-            'purchase_order_id': cls.po.id,
+            'po_ids': [(4, cls.po.id)],
             'company_id': cls.env.company.id,
             'currency_id': cls.env.company.currency_id.id,
         })
@@ -64,7 +64,7 @@ class TestActionGuards(TransactionCase):
     def test_request_quotes_lock_acquired(self):
         """action_request_quotes executes SELECT FOR UPDATE NOWAIT."""
         tender = self.env['freight.tender'].create({
-            'purchase_order_id': self.po.id,
+            'po_ids': [(4, self.po.id)],
             'company_id': self.env.company.id,
             'currency_id': self.env.company.currency_id.id,
             'state': 'draft',
@@ -94,7 +94,7 @@ class TestActionGuards(TransactionCase):
     def test_request_quotes_wrong_state_raises(self):
         """action_request_quotes raises UserError when state is not draft/partial."""
         tender = self.env['freight.tender'].create({
-            'purchase_order_id': self.po.id,
+            'po_ids': [(4, self.po.id)],
             'company_id': self.env.company.id,
             'currency_id': self.env.company.currency_id.id,
             'state': 'booked',

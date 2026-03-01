@@ -119,7 +119,7 @@ class TestEtaDriftDetection(TransactionCase):
             'carrier_id':          cls.carrier.id,
             'currency_id':         cls.env.company.currency_id.id,
             'carrier_shipment_id': 'SH_ETA',
-            'purchase_order_id':   cls.po.id,
+            'po_ids':              [(4, cls.po.id)],
             'state':               'in_transit',
             'eta':                 cls.orig_eta,
             'vessel_name':         '',

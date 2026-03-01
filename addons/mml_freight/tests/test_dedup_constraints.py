@@ -14,7 +14,7 @@ class TestDedupConstraints(TransactionCase):
         supplier = cls.env['res.partner'].create({'name': 'Constraint Supplier'})
         po = cls.env['purchase.order'].create({'partner_id': supplier.id})
         tender = cls.env['freight.tender'].create({
-            'purchase_order_id': po.id,
+            'po_ids': [(4, po.id)],
             'company_id': cls.env.company.id,
             'currency_id': cls.env.company.currency_id.id,
         })

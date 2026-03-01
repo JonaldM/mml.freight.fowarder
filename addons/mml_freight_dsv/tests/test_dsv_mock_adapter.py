@@ -25,7 +25,7 @@ class TestDsvMockAdapter(TransactionCase):
     def _tender(self):
         p = self.env['res.partner'].create({'name': 'Mock S'})
         po = self.env['purchase.order'].create({'partner_id': p.id})
-        return self.env['freight.tender'].create({'purchase_order_id': po.id, 'company_id': self.env.company.id, 'currency_id': self.env.company.currency_id.id})
+        return self.env['freight.tender'].create({'po_ids': [(4, po.id)], 'company_id': self.env.company.id, 'currency_id': self.env.company.currency_id.id})
 
     def test_two_quotes(self): self.assertEqual(len(self.adapter.request_quote(self._tender())), 2)
     def test_road_quote(self):

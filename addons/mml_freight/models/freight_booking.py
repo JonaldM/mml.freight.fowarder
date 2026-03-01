@@ -58,10 +58,11 @@ class FreightBooking(models.Model):
     )
     tender_id = fields.Many2one('freight.tender', ondelete='restrict', index=True)
     carrier_id = fields.Many2one('delivery.carrier', required=True, ondelete='restrict')
-    purchase_order_id = fields.Many2one('purchase.order', ondelete='restrict', index=True)
-
-    tpl_message_id = fields.Many2one(
-        '3pl.message', string='3PL Message', ondelete='set null', readonly=True,
+    po_ids = fields.Many2many(
+        'purchase.order',
+        'freight_booking_purchase_order_rel',
+        'booking_id', 'purchase_order_id',
+        string='Purchase Orders',
     )
 
     carrier_booking_id = fields.Char('Carrier Booking Ref', tracking=True)
@@ -376,7 +377,13 @@ class FreightBooking(models.Model):
         )
 
     def action_create_landed_cost(self):
-        """Create a stock.landed.cost from this booking's actual_rate and open it."""
+        """Create a stock.landed.cost from this booking's actual_rate and open it.
+
+        Collects done incoming receipts from all linked purchase orders so that a
+        consolidated multi-PO booking is covered by a single landed cost entry.
+        Odoo's split_method (by_weight / by_value) then apportions the freight
+        cost across the individual product moves.
+        """
         self.ensure_one()
         if not self.actual_rate:
             raise UserError(
@@ -393,16 +400,16 @@ class FreightBooking(models.Model):
                 'stock.landed.cost model not available. '
                 'Ensure the stock_account (or stock_landed_costs) module is installed.'
             )
-        po = self.purchase_order_id
-        if not po:
-            raise UserError('No purchase order linked to this booking.')
-        receipt = po.picking_ids.filtered(
+        if not self.po_ids:
+            raise UserError('No purchase orders linked to this booking.')
+        receipts = self.po_ids.mapped('picking_ids').filtered(
             lambda p: p.state == 'done' and p.picking_type_code == 'incoming'
         )
-        if not receipt:
+        if not receipts:
+            po_names = ', '.join(self.po_ids.mapped('name'))
             raise UserError(
-                'No validated receipt found for %s. '
-                'Receive the goods before creating a landed cost.' % po.name
+                'No validated receipts found for %s. '
+                'Receive the goods before creating a landed cost.' % po_names
             )
         freight_product = self._get_freight_cost_product()
         if not freight_product:
@@ -416,7 +423,7 @@ class FreightBooking(models.Model):
             if freight_product.categ_id else False
         )
         landed_cost = self.env['stock.landed.cost'].create({
-            'picking_ids':  [(4, receipt[0].id)],
+            'picking_ids':    [(4, r.id) for r in receipts],
             'vendor_bill_id': self.invoice_id.id if self.invoice_id else False,
             'cost_lines': [(0, 0, {
                 'product_id':   freight_product.id,
@@ -430,7 +437,8 @@ class FreightBooking(models.Model):
         self.message_post(
             body=(
                 f'Landed cost created: {landed_cost.name} '
-                f'({self.actual_rate:.2f} {self.currency_id.name}). '
+                f'({self.actual_rate:.2f} {self.currency_id.name}) '
+                f'covering {len(receipts)} receipt(s) across {len(self.po_ids)} PO(s). '
                 f'Validate the landed cost to apply freight to product valuations.'
             )
         )
@@ -442,13 +450,17 @@ class FreightBooking(models.Model):
         }
 
     def _queue_3pl_inward_order(self):
-        """Queue an inward order notice via stock_3pl_core message queue.
+        """Queue one inward_order notice per linked PO via stock_3pl_core message queue.
 
-        Connector selection uses a two-step strategy:
-        1. Specific match: active connector for this warehouse that explicitly handles
-           one or more of the PO's product categories (ordered by priority asc).
-        2. Catch-all fallback: active connector with no product categories configured
-           (ordered by priority asc).
+        Consolidated bookings cover multiple POs. Mainfreight receives one inward order
+        per PO because each PO maps to its own Odoo stock receipt (picking). This method
+        iterates po_ids and creates one 3pl.message per PO, skipping any PO that already
+        has a create-type inward_order message (idempotency guard per PO, not per booking).
+
+        Connector selection per PO uses a two-step strategy:
+        1. Specific match: active connector for the PO's warehouse that handles one or
+           more of the PO's product categories (ordered by priority asc).
+        2. Catch-all fallback: active connector with no product categories configured.
 
         Graceful no-op if stock_3pl_core is not installed or no matching connector found.
         """
@@ -458,50 +470,65 @@ class FreightBooking(models.Model):
                 self.name,
             )
             return
-        if self.tpl_message_id:
-            _logger.info(
-                'freight.booking %s: 3PL inward order already queued (%s) — skipping duplicate',
-                self.name, self.tpl_message_id.id,
-            )
-            return
-        po = self.purchase_order_id
-        if not po:
-            return
-        warehouse = po.picking_type_id.warehouse_id if po.picking_type_id else False
-        if not warehouse:
+        if not self.po_ids:
             return
 
-        connector = self._resolve_3pl_connector(warehouse, po)
-        if not connector:
-            _logger.info(
-                'freight.booking %s: no active 3PL connector for warehouse %s — skipping',
-                self.name, warehouse.name,
-            )
-            return
+        for po in self.po_ids:
+            # Per-PO idempotency: skip if a create-type inward_order already exists for this PO.
+            existing = self.env['3pl.message'].search([
+                ('ref_model', '=', 'purchase.order'),
+                ('ref_id', '=', po.id),
+                ('document_type', '=', 'inward_order'),
+                ('action', '=', 'create'),
+            ], limit=1)
+            if existing:
+                _logger.info(
+                    'freight.booking %s: inward_order already queued for PO %s (%s) — skipping',
+                    self.name, po.name, existing.id,
+                )
+                continue
 
-        # Message is created in draft with no payload — intentional Phase 2 scaffolding.
-        # The inward_order payload (XML/JSON) will be built and the message advanced to
-        # 'queued' by the document-builder step implemented in Phase 2. Until then the
-        # message sits in draft and the cron will not attempt to send it.
-        msg = self.env['3pl.message'].create({
-            'connector_id': connector.id,
-            'direction': 'outbound',
-            'document_type': 'inward_order',
-            'action': 'create',
-            'ref_model': 'purchase.order',
-            'ref_id': po.id,
-        })
-        self.tpl_message_id = msg
-        _logger.info(
-            'freight.booking %s: queued 3pl.message %s for PO %s via connector %s',
-            self.name, msg.id, po.name, connector.name,
-        )
+            warehouse = po.picking_type_id.warehouse_id if po.picking_type_id else False
+            if not warehouse:
+                _logger.info(
+                    'freight.booking %s: PO %s has no warehouse — skipping 3PL handoff for this PO',
+                    self.name, po.name,
+                )
+                continue
+
+            connector = self._resolve_3pl_connector(warehouse, po)
+            if not connector:
+                _logger.info(
+                    'freight.booking %s: no active 3PL connector for warehouse %s (PO %s) — skipping',
+                    self.name, warehouse.name, po.name,
+                )
+                continue
+
+            msg = self.env['3pl.message'].create({
+                'connector_id':  connector.id,
+                'direction':     'outbound',
+                'document_type': 'inward_order',
+                'action':        'create',
+                'ref_model':     'purchase.order',
+                'ref_id':        po.id,
+            })
+            _logger.info(
+                'freight.booking %s: queued 3pl.message %s for PO %s via connector %s',
+                self.name, msg.id, po.name, connector.name,
+            )
 
     def _build_inward_order_payload(self):
-        """Build inward order XML and advance tpl_message_id to 'queued'."""
+        """Build inward order XML for every draft inward_order message linked to this booking's POs.
+
+        For each linked PO, finds the draft create-type 3pl.message and advances it to
+        'queued' with the XML payload. A consolidated booking produces one message per PO.
+        """
         self.ensure_one()
-        if not self.tpl_message_id:
+        if not self.po_ids:
             return
+        if '3pl.message' not in self.env:
+            return
+
         # Try to load InwardOrderDocument from stock_3pl_mainfreight
         try:
             from odoo.addons.stock_3pl_mainfreight.document.inward_order import InwardOrderDocument
@@ -511,28 +538,40 @@ class FreightBooking(models.Model):
                 self.name,
             )
             return
-        connector = self.tpl_message_id.connector_id
-        if not connector:
+
+        draft_messages = self.env['3pl.message'].search([
+            ('ref_model', '=', 'purchase.order'),
+            ('ref_id', 'in', self.po_ids.ids),
+            ('document_type', '=', 'inward_order'),
+            ('action', '=', 'create'),
+            ('state', '=', 'draft'),
+        ])
+        if not draft_messages:
             return
-        try:
-            doc = InwardOrderDocument(connector, self.env)
-            xml = doc.build_outbound(self, action='create')
-            self.tpl_message_id.write({'payload_xml': xml, 'state': 'queued'})
-            _logger.info(
-                'freight.booking %s: inward order payload built, message %s queued',
-                self.name, self.tpl_message_id.id,
-            )
-        except Exception as e:
-            _logger.error(
-                'freight.booking %s: failed to build inward order payload: %s',
-                self.name, e,
-            )
-            self.message_post(
-                body=f'⚠️ Failed to build Mainfreight inward order payload: {e}. '
-                     f'The 3PL message has NOT been queued — manual intervention required.',
-                message_type='comment',
-                subtype_xmlid='mail.mt_note',
-            )
+
+        for msg in draft_messages:
+            connector = msg.connector_id
+            if not connector:
+                continue
+            try:
+                doc = InwardOrderDocument(connector, self.env)
+                xml = doc.build_outbound(self, action='create')
+                msg.write({'payload_xml': xml, 'state': 'queued'})
+                _logger.info(
+                    'freight.booking %s: inward order payload built, message %s queued (PO id=%s)',
+                    self.name, msg.id, msg.ref_id,
+                )
+            except Exception as e:
+                _logger.error(
+                    'freight.booking %s: failed to build payload for message %s: %s',
+                    self.name, msg.id, e,
+                )
+                self.message_post(
+                    body=f'⚠️ Failed to build Mainfreight inward order payload for message {msg.id}: {e}. '
+                         f'Manual intervention required.',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
 
     def _resolve_3pl_connector(self, warehouse, po):
         """Return the best-matching active 3pl.connector for the given warehouse and PO.
@@ -577,29 +616,32 @@ class FreightBooking(models.Model):
             self._queue_inward_order_update()
 
     def _queue_inward_order_update(self):
-        """Create a queued 3pl.message UPDATE for this booking's inward order."""
+        """Create a queued 3pl.message UPDATE for each linked PO's inward order.
+
+        No duplicate guard — multiple UPDATE messages per PO are valid; each represents
+        a distinct ETA drift or vessel-change event.
+        """
         if '3pl.connector' not in self.env:
             return
-        po = self.purchase_order_id
-        if not po:
-            return
-        warehouse = po.picking_type_id.warehouse_id if po.picking_type_id else False
-        if not warehouse:
-            return
-        connector = self._resolve_3pl_connector(warehouse, po)
-        if not connector:
-            return
-        # No duplicate guard — multiple UPDATE messages for the same PO are valid;
-        # each represents a distinct ETA drift or vessel-change event.
-        msg = self.env['3pl.message'].create({
-            'connector_id':  connector.id,
-            'direction':     'outbound',
-            'document_type': 'inward_order',
-            'action':        'update',
-            'ref_model':     'purchase.order',
-            'ref_id':        po.id,
-        })
-        _logger.info('freight.booking %s: queued inward_order UPDATE %s', self.name, msg.id)
+        for po in self.po_ids:
+            warehouse = po.picking_type_id.warehouse_id if po.picking_type_id else False
+            if not warehouse:
+                continue
+            connector = self._resolve_3pl_connector(warehouse, po)
+            if not connector:
+                continue
+            msg = self.env['3pl.message'].create({
+                'connector_id':  connector.id,
+                'direction':     'outbound',
+                'document_type': 'inward_order',
+                'action':        'update',
+                'ref_model':     'purchase.order',
+                'ref_id':        po.id,
+            })
+            _logger.info(
+                'freight.booking %s: queued inward_order UPDATE %s for PO %s',
+                self.name, msg.id, po.name,
+            )
 
     def _handle_dsv_invoice_webhook(self, carrier, body):
         """Handle DSV Invoice webhook notification. Fetches invoice via API and updates actual_rate.

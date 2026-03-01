@@ -41,8 +41,24 @@ class FreightTender(models.Model):
 
     name = fields.Char('Reference', readonly=True, default='New', copy=False)
     state = fields.Selection(TENDER_STATES, default='draft', required=True, tracking=True)
-    purchase_order_id = fields.Many2one(
-        'purchase.order', required=True, ondelete='restrict', index=True,
+    po_ids = fields.Many2many(
+        'purchase.order',
+        'freight_tender_purchase_order_rel',
+        'tender_id', 'purchase_order_id',
+        string='Purchase Orders',
+    )
+    shipment_group_ref = fields.Char(
+        'Shipment Group Ref',
+        help='ROQ shipment group reference. The ROQ module adds a proper Many2one '
+             'via model inheritance; this char field provides the lightweight link '
+             'when ROQ is not installed.',
+    )
+    supplier_count = fields.Integer(
+        'Supplier Count', compute='_compute_consolidation', store=True,
+    )
+    is_consolidated = fields.Boolean(
+        'Consolidated Shipment', compute='_compute_consolidation', store=True,
+        help='True when more than one purchase order is linked to this tender.',
     )
     company_id = fields.Many2one(
         'res.company', required=True, default=lambda self: self.env.company,
@@ -126,6 +142,12 @@ class FreightTender(models.Model):
             t.total_packages = total_qty
             t.chargeable_weight_kg = max(total_weight, volumetric_weight)
             t.contains_dg = any(lines.mapped('is_dangerous'))
+
+    @api.depends('po_ids')
+    def _compute_consolidation(self):
+        for t in self:
+            t.supplier_count = len(t.po_ids)
+            t.is_consolidated = len(t.po_ids) > 1
 
     @api.depends('quote_line_ids.total_rate_nzd', 'quote_line_ids.state')
     def _compute_cheapest_quote(self):
@@ -284,7 +306,7 @@ class FreightTender(models.Model):
         booking = self.env['freight.booking'].create({
             'tender_id':            self.id,
             'carrier_id':           self.selected_quote_id.carrier_id.id,
-            'purchase_order_id':    self.purchase_order_id.id,
+            'po_ids':               [(4, po.id) for po in self.po_ids],
             'currency_id':          self.selected_quote_id.currency_id.id,
             'booked_rate':          self.selected_quote_id.total_rate,
             'transport_mode':       self.selected_quote_id.transport_mode,
@@ -299,8 +321,6 @@ class FreightTender(models.Model):
             booking.action_confirm()
 
         self.write({'booking_id': booking.id, 'state': 'booked'})
-        if self.purchase_order_id:
-            self.purchase_order_id.freight_tender_id = self
         return True
 
     def action_cancel(self):

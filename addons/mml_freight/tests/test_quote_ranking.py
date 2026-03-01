@@ -7,7 +7,7 @@ class TestQuoteRanking(TransactionCase):
         p = cls.env['res.partner'].create({'name': 'Rank S'})
         po = cls.env['purchase.order'].create({'partner_id': p.id})
         nzd = cls.env['res.currency'].search([('name', '=', 'NZD')], limit=1) or cls.env.company.currency_id
-        cls.tender = cls.env['freight.tender'].create({'purchase_order_id': po.id, 'company_id': cls.env.company.id, 'currency_id': nzd.id})
+        cls.tender = cls.env['freight.tender'].create({'po_ids': [(4, po.id)], 'company_id': cls.env.company.id, 'currency_id': nzd.id})
         prod = cls.env['product.product'].search([], limit=1)
         c1 = cls.env['delivery.carrier'].create({'name': 'C1', 'product_id': prod.id, 'delivery_type': 'fixed'})
         c2 = cls.env['delivery.carrier'].create({'name': 'C2', 'product_id': prod.id, 'delivery_type': 'fixed'})

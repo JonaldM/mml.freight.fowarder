@@ -27,14 +27,14 @@ class TestLandedCost(TransactionCase):
         cls.supplier = cls.env['res.partner'].create({'name': 'LC Supplier'})
         cls.po = cls.env['purchase.order'].create({'partner_id': cls.supplier.id})
         cls.tender = cls.env['freight.tender'].create({
-            'purchase_order_id': cls.po.id,
+            'po_ids': [(4, cls.po.id)],
             'company_id': cls.env.company.id,
             'currency_id': cls.env.company.currency_id.id,
         })
         cls.booking = cls.env['freight.booking'].create({
             'carrier_id': cls.carrier.id,
             'tender_id': cls.tender.id,
-            'purchase_order_id': cls.po.id,
+            'po_ids': [(4, cls.po.id)],
             'currency_id': cls.env.company.currency_id.id,
             'actual_rate': 1950.00,
         })
@@ -82,7 +82,7 @@ class TestLandedCost(TransactionCase):
         booking_no_rate = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,
             'tender_id': self.tender.id,
-            'purchase_order_id': self.po.id,
+            'po_ids': [(4, self.po.id)],
             'currency_id': self.env.company.currency_id.id,
             'actual_rate': 0.0,
         })
@@ -98,7 +98,7 @@ class TestLandedCost(TransactionCase):
         booking_new = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,
             'tender_id': self.tender.id,
-            'purchase_order_id': po_new.id,
+            'po_ids': [(4, po_new.id)],
             'currency_id': self.env.company.currency_id.id,
             'actual_rate': 500.0,
         })

@@ -23,7 +23,7 @@ class TestDsvBookingPayload(TransactionCase):
         })
         po = cls.env['purchase.order'].create({'partner_id': origin.id})
         cls.tender = cls.env['freight.tender'].create({
-            'purchase_order_id': po.id,
+            'po_ids': [(4, po.id)],
             'company_id': cls.env.company.id,
             'currency_id': cls.env.company.currency_id.id,
             'origin_partner_id': origin.id,
@@ -56,9 +56,10 @@ class TestDsvBookingPayload(TransactionCase):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
         self.assertEqual(p['quoteId'], 'QREF001')
 
-    def test_customer_reference_is_po_name(self):
+    def test_customer_reference_is_po_names(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
-        self.assertEqual(p['customerReference'], self.tender.purchase_order_id.name)
+        expected = ', '.join(self.tender.po_ids.mapped('name'))
+        self.assertEqual(p['customerReference'], expected)
 
     def test_mdm_number_from_carrier(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)

@@ -23,7 +23,7 @@ class TestTenderExpiry(TransactionCase):
     def _make_tender(self, state='quoted', expiry_offset_hours=-1):
         expiry = fields.Datetime.now() + datetime.timedelta(hours=expiry_offset_hours)
         tender = self.env['freight.tender'].create({
-            'purchase_order_id': self.po.id,
+            'po_ids': [(4, self.po.id)],
             'company_id':        self.env.company.id,
             'currency_id':       self.nzd.id,
             'state':             state,

@@ -107,7 +107,7 @@ class TestBookingConfirmWithDsv(TransactionCase):
             'carrier_id':         self.carrier.id,
             'currency_id':        self.env.company.currency_id.id,
             'carrier_booking_id': 'DSVBK_CONF',
-            'purchase_order_id':  self.po.id,
+            'po_ids':             [(4, self.po.id)],
             'state':              'draft',
         })
 

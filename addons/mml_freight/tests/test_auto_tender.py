@@ -69,7 +69,7 @@ class TestAutoTender(TransactionCase):
         """If a tender already exists, button_confirm must not create a second one."""
         po = self._make_po_with_line(self.incoterm_exw)
         existing = self.env['freight.tender'].create({
-            'purchase_order_id': po.id,
+            'po_ids': [(4, po.id)],
             'company_id': self.env.company.id,
             'currency_id': self.env.company.currency_id.id,
         })
@@ -80,7 +80,7 @@ class TestAutoTender(TransactionCase):
             type(self.env['freight.tender']), 'action_request_quotes', mock_request_quotes,
         ):
             po.button_confirm()
-        tenders = self.env['freight.tender'].search([('purchase_order_id', '=', po.id)])
+        tenders = self.env['freight.tender'].search([('po_ids', 'in', [po.id])])
         self.assertEqual(len(tenders), 1, 'Must not create duplicate tender')
         mock_request_quotes.assert_not_called()
 

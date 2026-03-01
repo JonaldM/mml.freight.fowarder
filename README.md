@@ -9,11 +9,17 @@ Odoo 19 freight forwarding integration for **MML Consumer Products**. Automates 
 When a Purchase Order arrives with an EXW, FCA, FOB, or FAS incoterm, MML is responsible for arranging freight from the supplier to the NZ warehouse. This system:
 
 1. Detects freight responsibility from the PO incoterm automatically
-2. Creates a **Freight Tender** and fans it out to configured carriers
+2. Creates a **Freight Tender** (linked to one or more POs) and fans it out to configured carriers
 3. Carriers return quotes (real API or mock); the system ranks by cost, speed, or best-value
 4. A quote is selected (manually or auto) and a **Freight Booking** is confirmed
-5. On confirmation, an inward order notice is queued to **Mainfreight** via `stock_3pl_core`
+5. On confirmation, **one inward order notice is queued per linked PO** to Mainfreight via `stock_3pl_core`
 6. Tracking events sync from the carrier on a 30-minute cron
+
+### Consolidated shipments (ROQ integration)
+
+The `mml_roq_forecast` module produces **shipment groups** — planned consolidations of multiple supplier POs shipping from the same FOB port into a single container. When a shipment group is confirmed, ROQ creates a single `freight.tender` with all POs in `po_ids`. A booking covering all POs is confirmed in one action; Mainfreight still receives one inward order per PO (matching Odoo's one-receipt-per-PO model).
+
+See `docs/plans/roq-freight-interface-contract.md` for the full integration spec.
 
 ---
 
@@ -136,7 +142,8 @@ odoo-bin --test-enable --stop-after-init \
 | `test_quote_ranking.py` | is_cheapest, is_fastest, rank_by_cost, cost_vs_cheapest_pct |
 | `test_auto_select.py` | Cheapest/fastest/manual modes, selection reason |
 | `test_tender_lifecycle.py` | State machine, sequence prefix, cancel, error guards |
-| `test_3pl_handoff.py` | Graceful no-op without connector; 3pl.message creation when present |
+| `test_3pl_handoff.py` | Graceful no-op without connector; 3pl.message creation; connector priority and category routing |
+| `test_consolidated_pos.py` | Multi-PO tender (po_ids M2M), supplier_count/is_consolidated, shipment_group_ref, booking po_ids propagation, one 3PL message per PO, per-PO idempotency, multi-receipt landed cost |
 | `test_po_form_fields.py` | Responsibility recomputes, tender count, action_request_freight_tender |
 | `test_dsv_auth.py` | Demo short-circuit, token cache, near-expiry refresh, 401/403 handling |
 | `test_dsv_mock_adapter.py` | Mock quote values, booking ref prefix, tracking events, live guard |
@@ -169,25 +176,33 @@ To go live: set the carrier's **Environment** to `Production` and fill in the AP
 ## Architecture
 
 ```
-purchase.order
-    ↓ action_request_freight_tender()
-freight.tender  ──── action_request_quotes() ──── FreightAdapterBase.request_quote()
-    │                                                       ↑
-    │                                              register_adapter('dsv_generic')
-    │                                              DsvMockAdapter / DsvGenericAdapter
-    ↓ action_book()
-freight.booking ──── action_confirm() ──── 3pl.message (inward_order)
-    │                                            ↓
-    │                                     stock_3pl_core → Mainfreight SFTP
-    ↓ cron / webhook
-freight.tracking.event
+roq.shipment.group (ROQ module)          purchase.order (single PO, manual)
+    ↓ action_confirm()                       ↓ action_request_freight_tender()
+    └──────────────────────────────────────► freight.tender  (po_ids: many2many)
+                                                 │
+                                                 ↓ action_request_quotes()
+                                             FreightAdapterBase.request_quote()
+                                                 ↑
+                                          register_adapter('dsv_generic')
+                                          DsvMockAdapter / DsvGenericAdapter
+                                                 │
+                                                 ↓ action_book()
+                                             freight.booking  (po_ids: many2many)
+                                                 │
+                                                 ↓ action_confirm()
+                                          3pl.message × N  (one per linked PO)
+                                                 ↓
+                                          stock_3pl_core → Mainfreight SFTP
+                                                 │
+                                                 ↓ cron / webhook
+                                          freight.tracking.event
 ```
 
 ### Key business rules
 
 - **Chargeable weight** = max(actual_kg, CBM × 333)
 - **Auto-select modes**: cheapest (lowest NZD rate), fastest (lowest transit days), best_value (0.6×cost_rank + 0.4×reliability)
-- **3PL handoff**: graceful no-op if `stock_3pl_core` not installed or no active connector for the PO's warehouse
+- **3PL handoff**: one `3pl.message` (inward_order) per linked PO — graceful no-op if `stock_3pl_core` not installed or no active connector for a PO's warehouse. Idempotent per PO: calling confirm twice does not create duplicate messages.
 - **OAuth tokens**: cached on carrier record, refreshed 120s before expiry, cron runs every 8 minutes
 
 ### Multi-warehouse / multi-provider routing
@@ -210,7 +225,7 @@ This supports n warehouses × n providers. Example configuration:
 - Chilled PO → Hamilton WH → category match → CoolStore Hamilton ✓
 - Any PO → Christchurch WH → ChCh 3PL ✓
 
-**One PO per destination.** Split orders by city (Hamilton 60 units / Christchurch 40 units) onto separate POs, each with its own freight tender and warehouse picking type. Purchase Agreements can hold the total negotiated quantity across both POs.
+**Multiple POs per tender are supported.** A consolidated tender (from ROQ or manually) can cover several supplier POs shipping from the same origin. Each PO gets its own Mainfreight inward order because Odoo's stock receipt model is one-receipt-per-PO. Split orders by destination warehouse onto separate POs (e.g. Hamilton + Christchurch) — each still gets its own connector-routing pass.
 
 ### Adding a new carrier adapter
 
@@ -257,6 +272,7 @@ class FlexportAdapter(FreightAdapterBase):
 |-------|--------|-------|
 | Phase 1 | **Complete** | Models, UI, mock adapter, 3PL handoff stub, full test suite |
 | Phase 1.5 | **Complete** | Multi-warehouse routing: `priority` + `product_category_ids` on `3pl.connector`; specific-then-catch-all connector selection |
+| Phase 1.6 | **Complete** | Consolidated PO support: `freight.tender` and `freight.booking` migrated to `po_ids` Many2many; one inward order per PO; multi-receipt landed cost; ROQ interface contract defined |
 | Phase 2 | Planned | Live DSV Generic API (quote + booking), tracking sync, inward_order payload builder |
 | Phase 3 | Planned | Auto-tender from PO on confirm, selection algorithms, DSV webhooks |
 | Phase 4 | Planned | DSV labels/PODs, Mainfreight adapter, landed cost integration |

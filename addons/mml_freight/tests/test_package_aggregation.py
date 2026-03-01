@@ -12,7 +12,7 @@ class TestPackageAggregation(TransactionCase):
 
     def _tender(self):
         return self.env['freight.tender'].create({
-            'purchase_order_id': self.po.id, 'company_id': self.env.company.id,
+            'po_ids': [(4, self.po.id)], 'company_id': self.env.company.id,
             'currency_id': self.env.company.currency_id.id,
         })
 

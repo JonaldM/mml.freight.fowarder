@@ -29,11 +29,11 @@ class TestPoFormFields(TransactionCase):
 
     def test_tender_count_increments(self):
         po = self.env['purchase.order'].create({'partner_id': self.partner.id, 'incoterm_id': self._inc('FOB').id})
-        self.env['freight.tender'].create({'purchase_order_id': po.id, 'company_id': self.env.company.id, 'currency_id': self.env.company.currency_id.id})
+        self.env['freight.tender'].create({'po_ids': [(4, po.id)], 'company_id': self.env.company.id, 'currency_id': self.env.company.currency_id.id})
         self.assertEqual(po.tender_count, 1)
 
     def test_action_creates_tender(self):
         po = self.env['purchase.order'].create({'partner_id': self.partner.id, 'incoterm_id': self._inc('EXW').id})
         po.action_request_freight_tender()
         self.assertTrue(po.freight_tender_id)
-        self.assertEqual(po.freight_tender_id.purchase_order_id, po)
+        self.assertIn(po, po.freight_tender_id.po_ids)

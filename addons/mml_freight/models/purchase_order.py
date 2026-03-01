@@ -87,13 +87,15 @@ class PurchaseOrder(models.Model):
 
     @api.depends('freight_tender_id')
     def _compute_tender_count(self):
-        # M1: use read_group to avoid N+1 search_count queries
-        groups = self.env['freight.tender'].read_group(
-            [('purchase_order_id', 'in', self.ids)],
-            ['purchase_order_id'],
-            ['purchase_order_id'],
-        )
-        counts = {g['purchase_order_id'][0]: g['purchase_order_id_count'] for g in groups}
+        # Use search to count tenders linked via the M2M relation.
+        # read_group on M2M fields is not straightforward in Odoo ORM, so we use
+        # a single search and group the result in Python — acceptable for small sets.
+        all_tenders = self.env['freight.tender'].search([('po_ids', 'in', self.ids)])
+        counts = {}
+        for tender in all_tenders:
+            for po in tender.po_ids:
+                if po.id in self.ids:
+                    counts[po.id] = counts.get(po.id, 0) + 1
         for po in self:
             po.tender_count = counts.get(po.id, 0)
 
@@ -104,8 +106,8 @@ class PurchaseOrder(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'freight.tender',
             'view_mode': 'list,form',
-            'domain': [('purchase_order_id', '=', self.id)],
-            'context': {'default_purchase_order_id': self.id},
+            'domain': [('po_ids', 'in', [self.id])],
+            'context': {'default_po_ids': [(4, self.id)]},
         }
 
     def _populate_tender_packages(self, tender):
@@ -162,7 +164,7 @@ class PurchaseOrder(models.Model):
                 'Archive it before creating a new one.' % self.freight_tender_id.name
             )
         tender = self.env['freight.tender'].create({
-            'purchase_order_id': self.id,
+            'po_ids': [(4, self.id)],
             'company_id': self.company_id.id,
             'origin_partner_id': self.partner_id.id,
             'origin_country_id': self.partner_id.country_id.id if self.partner_id.country_id else False,

@@ -16,7 +16,7 @@ class TestActionBookGuard(TransactionCase):
         supplier = cls.env['res.partner'].create({'name': 'Book Guard Supplier'})
         cls.po = cls.env['purchase.order'].create({'partner_id': supplier.id})
         cls.tender = cls.env['freight.tender'].create({
-            'purchase_order_id': cls.po.id,
+            'po_ids': [(4, cls.po.id)],
             'company_id': cls.env.company.id,
             'currency_id': cls.env.company.currency_id.id,
             'state': 'selected',
@@ -80,7 +80,7 @@ class TestActionBookGuard(TransactionCase):
     def test_action_book_not_selected_state_raises(self):
         """action_book raises UserError when state is not 'selected' (state guard, not quote guard)."""
         tender2 = self.env['freight.tender'].create({
-            'purchase_order_id': self.po.id,
+            'po_ids': [(4, self.po.id)],
             'company_id': self.env.company.id,
             'currency_id': self.env.company.currency_id.id,
             'state': 'draft',

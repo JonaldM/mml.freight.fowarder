@@ -17,7 +17,7 @@ class TestFetchLabel(TransactionCase):
             'x_dsv_environment': 'demo',
         })
         tender = cls.env['freight.tender'].create({
-            'purchase_order_id': cls.po.id,
+            'po_ids': [(4, cls.po.id)],
             'company_id': cls.env.company.id,
             'currency_id': cls.env.company.currency_id.id,
         })

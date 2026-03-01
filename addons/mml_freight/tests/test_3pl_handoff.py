@@ -21,7 +21,7 @@ class Test3plHandoff(TransactionCase):
     def test_no_error_without_connector(self):
         b = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,
-            'purchase_order_id': self.po.id,
+            'po_ids': [(4, self.po.id)],
             'currency_id': self.env.company.currency_id.id,
         })
         b.action_confirm()
@@ -42,13 +42,18 @@ class Test3plHandoff(TransactionCase):
         self.po.write({'picking_type_id': picking_type.id})
         b = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,
-            'purchase_order_id': self.po.id,
+            'po_ids': [(4, self.po.id)],
             'currency_id': self.env.company.currency_id.id,
         })
         b.action_confirm()
-        self.assertTrue(b.tpl_message_id)
-        self.assertEqual(b.tpl_message_id.document_type, 'inward_order')
-        self.assertEqual(b.tpl_message_id.ref_id, self.po.id)
+        msg = self.env['3pl.message'].search([
+            ('ref_model', '=', 'purchase.order'),
+            ('ref_id', '=', self.po.id),
+            ('document_type', '=', 'inward_order'),
+            ('action', '=', 'create'),
+        ], limit=1)
+        self.assertTrue(msg, 'Expected a 3pl.message inward_order for the PO')
+        self.assertEqual(msg.ref_id, self.po.id)
 
     # ------------------------------------------------------------------ #
     # Routing tests (require stock_3pl_core)                              #
@@ -90,7 +95,7 @@ class Test3plHandoff(TransactionCase):
         po = self.env['purchase.order'].create({'partner_id': self.partner.id, 'picking_type_id': picking_type.id})
         b = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,
-            'purchase_order_id': po.id,
+            'po_ids': [(4, po.id)],
             'currency_id': self.env.company.currency_id.id,
         })
         connector = b._resolve_3pl_connector(warehouse, po)
@@ -125,7 +130,7 @@ class Test3plHandoff(TransactionCase):
         })
         b = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,
-            'purchase_order_id': po.id,
+            'po_ids': [(4, po.id)],
             'currency_id': self.env.company.currency_id.id,
         })
         connector = b._resolve_3pl_connector(warehouse, po)
@@ -161,7 +166,7 @@ class Test3plHandoff(TransactionCase):
         })
         b = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,
-            'purchase_order_id': po.id,
+            'po_ids': [(4, po.id)],
             'currency_id': self.env.company.currency_id.id,
         })
         connector = b._resolve_3pl_connector(warehouse, po)
@@ -187,7 +192,7 @@ class Test3plHandoff(TransactionCase):
             'carrier_id':          self.carrier.id,
             'currency_id':         self.env.company.currency_id.id,
             'carrier_booking_id':  'BK_PAYLOAD_001',
-            'purchase_order_id':   po.id,
+            'po_ids':              [(4, po.id)],
             'vessel_name':         'MSC Oscar',
             'voyage_number':       'VOY1',
             'container_number':    'CONT1',
@@ -219,8 +224,13 @@ class Test3plHandoff(TransactionCase):
             ):
                 booking.action_confirm_with_dsv()
 
-        msg = booking.tpl_message_id
-        self.assertTrue(msg, '3pl.message should be created')
+        msg = self.env['3pl.message'].search([
+            ('ref_model', '=', 'purchase.order'),
+            ('ref_id', '=', po.id),
+            ('document_type', '=', 'inward_order'),
+            ('action', '=', 'create'),
+        ], limit=1)
+        self.assertTrue(msg, '3pl.message should be created for the PO')
         self.assertEqual(msg.state, 'queued', 'Message should be queued after payload built')
         self.assertTrue(msg.payload_xml, 'payload_xml should be populated')
         self.assertIn('<InwardOrder', msg.payload_xml)

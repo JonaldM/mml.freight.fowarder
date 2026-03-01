@@ -40,5 +40,5 @@ def build_booking_payload(tender, selected_quote, carrier):
         'consignee':         _partner_dict(tender.dest_partner_id),
         'packages':          packages,
         'goodsDescription':  goods_desc,
-        'customerReference': tender.purchase_order_id.name if tender.purchase_order_id else '',
+        'customerReference': ', '.join(tender.po_ids.mapped('name')) if tender.po_ids else '',
     }

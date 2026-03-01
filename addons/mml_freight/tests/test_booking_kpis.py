@@ -22,9 +22,9 @@ class TestBookingKPIs(TransactionCase):
 
     def _make_booking(self, pickup=None, delivery=None, eta=None):
         vals = {
-            'carrier_id':        self.carrier.id,
-            'currency_id':       self.nzd.id,
-            'purchase_order_id': self.po.id,
+            'carrier_id':  self.carrier.id,
+            'currency_id': self.nzd.id,
+            'po_ids':      [(4, self.po.id)],
         }
         if pickup:
             vals['actual_pickup_date'] = pickup
@@ -68,7 +68,7 @@ class TestBookingKPIs(TransactionCase):
         """Falls back to tender.requested_delivery_date when booking.eta is unset."""
         requested = (self.base_dt + datetime.timedelta(days=20)).date()
         tender = self.env['freight.tender'].create({
-            'purchase_order_id':       self.po.id,
+            'po_ids':                  [(4, self.po.id)],
             'company_id':              self.env.company.id,
             'currency_id':             self.nzd.id,
             'requested_delivery_date': requested,
@@ -77,7 +77,7 @@ class TestBookingKPIs(TransactionCase):
         booking  = self.env['freight.booking'].create({
             'carrier_id':           self.carrier.id,
             'currency_id':          self.nzd.id,
-            'purchase_order_id':    self.po.id,
+            'po_ids':               [(4, self.po.id)],
             'tender_id':            tender.id,
             'actual_delivery_date': delivery,
         })
