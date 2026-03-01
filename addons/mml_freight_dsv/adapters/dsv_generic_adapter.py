@@ -12,7 +12,8 @@ DSV_QUOTE_URL    = f'{DSV_BASE}/qs/quote/v1/quotes'
 DSV_BOOKING_URL  = f'{DSV_BASE}/booking/v2/bookings'
 DSV_TRACKING_URL = f'{DSV_BASE}/tracking/v1/shipments/{{shipment_id}}/events'
 DSV_LABEL_URL    = f'{DSV_BASE}/printing/v1/labels/{{booking_id}}'
-DSV_DOC_LIST_URL = f'{DSV_BASE}/download/v1/shipments/bookingId/{{booking_id}}/documents'
+DSV_DOC_LIST_URL     = f'{DSV_BASE}/download/v1/shipments/bookingId/{{booking_id}}/documents'
+DSV_INVOICE_BY_SHIPMENT_URL = f'{DSV_BASE}/invoice/v1/invoices/shipments/{{shipment_id}}'
 
 _DSV_EVENT_STATE_MAP = {
     'BOOKING_CONFIRMED': 'confirmed',
@@ -333,3 +334,36 @@ class DsvGenericAdapter(FreightAdapterBase):
                 'carrier_doc_ref': raw.get('documentId', ''),
             })
         return documents
+
+    # ------------------------------------------------------------------
+    # get_invoice — implemented in Task 3
+    # ------------------------------------------------------------------
+
+    def get_invoice(self, booking):
+        """Fetch DSV freight invoice for this shipment. Returns dict or None (404 = not invoiced yet)."""
+        shipment_id = booking.carrier_shipment_id
+        if not shipment_id:
+            return None
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            _logger.warning('DSV invoice auth failed for %s: %s', booking.name, e)
+            return None
+        url = DSV_INVOICE_BY_SHIPMENT_URL.format(shipment_id=shipment_id)
+        try:
+            resp = requests.get(url, headers=self._headers(token), timeout=30)
+        except Exception as e:
+            _logger.warning('DSV invoice GET failed for %s: %s', booking.name, e)
+            return None
+        if resp.status_code == 404:
+            return None  # Not yet invoiced — caller treats this as "try again later"
+        if not resp.ok:
+            _logger.warning('DSV invoice HTTP %s for %s', resp.status_code, booking.name)
+            return None
+        data = resp.json()
+        return {
+            'dsv_invoice_id': data.get('invoiceId', ''),
+            'amount':         float(data.get('totalAmount', 0)),
+            'currency':       data.get('currency', 'NZD'),
+            'invoice_date':   data.get('invoiceDate', ''),
+        }

@@ -307,6 +307,31 @@ class FreightBooking(models.Model):
         )
         return True
 
+    def action_fetch_invoice(self):
+        """Fetch freight invoice from carrier and update actual_rate."""
+        self.ensure_one()
+        adapter = self.env['freight.adapter.registry'].get_adapter(self.carrier_id)
+        if not adapter:
+            raise UserError('No adapter available for this carrier.')
+        invoice_data = adapter.get_invoice(self)
+        if not invoice_data:
+            raise UserError('No invoice available for this shipment yet. Try again later.')
+        curr = self.env['res.currency'].search(
+            [('name', '=', invoice_data.get('currency', 'NZD'))], limit=1,
+        ) or self.currency_id
+        self.write({
+            'actual_rate': invoice_data['amount'],
+            'currency_id': curr.id if curr else self.currency_id.id,
+        })
+        self.message_post(
+            body=(
+                f"Freight invoice fetched: {invoice_data['amount']:.2f} "
+                f"{invoice_data.get('currency', '')} "
+                f"(DSV Invoice #{invoice_data.get('dsv_invoice_id', 'N/A')})"
+            )
+        )
+        return True
+
     def _queue_3pl_inward_order(self):
         """Queue an inward order notice via stock_3pl_core message queue.
 

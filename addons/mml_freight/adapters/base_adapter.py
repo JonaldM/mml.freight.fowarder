@@ -53,6 +53,12 @@ class FreightAdapterBase(ABC):
         """
         return []
 
+    def get_invoice(self, booking):
+        """Fetch invoice data from carrier. Returns dict or None (not yet invoiced / not supported).
+        Dict keys: dsv_invoice_id (str), amount (float), currency (str ISO-4217), invoice_date (str).
+        """
+        return None
+
     def cancel_booking(self, booking):
         """Cancel a booking with the carrier. Default is a no-op. Override where supported."""
         pass

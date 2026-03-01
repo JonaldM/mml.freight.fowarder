@@ -103,3 +103,14 @@ class DsvMockAdapter(FreightAdapterBase):
         if not self._demo():
             return self._live().get_documents(booking)
         return [{'doc_type': 'pod', 'bytes': b'%PDF-1.4-mock-pod', 'filename': 'POD-mock.pdf', 'carrier_doc_ref': 'MOCK-POD-001'}]
+
+    def get_invoice(self, booking):
+        if not self._demo():
+            return self._live().get_invoice(booking)
+        from odoo import fields
+        return {
+            'dsv_invoice_id': 'MOCK-INV-001',
+            'amount':         booking.booked_rate or 1800.00,
+            'currency':       booking.currency_id.name if booking.currency_id else 'NZD',
+            'invoice_date':   str(fields.Date.today()),
+        }
