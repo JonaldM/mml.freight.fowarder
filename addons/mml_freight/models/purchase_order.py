@@ -97,6 +97,37 @@ class PurchaseOrder(models.Model):
             'context': {'default_purchase_order_id': self.id},
         }
 
+    def _populate_tender_packages(self, tender):
+        """Create freight.tender.package lines from PO order lines."""
+        warned = []
+        for line in self.order_line:
+            tmpl = line.product_id.product_tmpl_id
+            weight = (tmpl.x_freight_weight if tmpl else 0.0) or 0.0
+            length = (tmpl.x_freight_length if tmpl else 0.0) or 0.0
+            width  = (tmpl.x_freight_width  if tmpl else 0.0) or 0.0
+            height = (tmpl.x_freight_height if tmpl else 0.0) or 0.0
+            if not (weight and length and width and height):
+                warned.append(line.product_id.name or 'Unknown')
+            self.env['freight.tender.package'].create({
+                'tender_id':    tender.id,
+                'product_id':   line.product_id.id,
+                'description':  line.product_id.name or '',
+                'quantity':     round(line.product_qty),
+                'weight_kg':    weight,
+                'length_cm':    length,
+                'width_cm':     width,
+                'height_cm':    height,
+                'is_dangerous': tmpl.x_dangerous_goods if tmpl else False,
+                'hs_code':      getattr(line.product_id, 'hs_code', '') or '',
+            })
+        if warned:
+            tender.message_post(
+                body=(
+                    f'Product(s) missing freight dimensions — package lines populated with zeros, '
+                    f'please update before requesting quotes: {", ".join(warned)}'
+                )
+            )
+
     def action_request_freight_tender(self):
         """Open a new freight tender linked to this PO."""
         self.ensure_one()
@@ -113,6 +144,7 @@ class PurchaseOrder(models.Model):
             'freight_mode_preference': self.freight_mode_preference or 'any',
         })
         self.freight_tender_id = tender
+        self._populate_tender_packages(tender)
         return {
             'name': 'Freight Tender',
             'type': 'ir.actions.act_window',
