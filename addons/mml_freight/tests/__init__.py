@@ -8,3 +8,4 @@ from . import test_3pl_handoff
 from . import test_po_form_fields
 from . import test_tender_package_population
 from . import test_auto_tender
+from . import test_tender_expiry

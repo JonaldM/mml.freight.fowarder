@@ -276,3 +276,37 @@ class FreightTender(models.Model):
     def action_cancel(self):
         self.write({'state': 'cancelled'})
         return True
+
+    @api.model
+    def cron_expire_tenders(self):
+        """Hourly cron: expire overdue quotes and tenders.
+
+        Two passes:
+        1. Expire individual quotes where rate_valid_until < now().
+        2. Expire full tenders where tender_expiry < now() and still open.
+        """
+        now = fields.Datetime.now()
+
+        # Pass 1: individual quote expiry regardless of tender state
+        stale_quotes = self.env['freight.tender.quote'].search([
+            ('state', 'in', ('pending', 'received')),
+            ('rate_valid_until', '<', now),
+            ('rate_valid_until', '!=', False),
+        ])
+        if stale_quotes:
+            stale_quotes.write({'state': 'expired'})
+            _logger.info('Freight cron: expired %d stale quotes', len(stale_quotes))
+
+        # Pass 2: tender-level expiry
+        open_states = ['requesting', 'quoted', 'partial']
+        overdue = self.search([
+            ('state', 'in', open_states),
+            ('tender_expiry', '<', now),
+            ('tender_expiry', '!=', False),
+        ])
+        for tender in overdue:
+            pending = tender.quote_line_ids.filtered(lambda q: q.state == 'pending')
+            if pending:
+                pending.write({'state': 'expired'})
+            tender.write({'state': 'expired'})
+            _logger.info('Freight cron: tender %s expired', tender.name)
