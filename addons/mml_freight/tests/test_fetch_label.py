@@ -87,3 +87,19 @@ class TestFetchLabel(TransactionCase):
             len(label_docs), 1,
             'Second fetch must update existing freight.document, not create a duplicate',
         )
+        label_attachments = self.env['ir.attachment'].search([
+            ('res_model', '=', 'freight.booking'),
+            ('res_id', '=', self.booking.id),
+            ('name', 'ilike', 'label'),
+        ])
+        self.assertEqual(len(label_attachments), 1, 'Must not leave orphaned label attachments')
+
+    def test_action_fetch_label_raises_when_no_adapter(self):
+        """action_fetch_label raises UserError when no adapter is registered for the carrier."""
+        from odoo.exceptions import UserError
+        with patch.object(
+            type(self.env['freight.adapter.registry']), 'get_adapter',
+            return_value=None,
+        ):
+            with self.assertRaises(UserError):
+                self.booking.action_fetch_label()

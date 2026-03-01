@@ -207,6 +207,9 @@ class FreightBooking(models.Model):
                 'Ensure the booking has been confirmed and a carrier booking reference is set.'
             )
 
+        if self.label_attachment_id:
+            self.label_attachment_id.unlink()
+
         attachment = self.env['ir.attachment'].create({
             'name': f'label_{self.name}.pdf',
             'type': 'binary',
