@@ -75,11 +75,21 @@ class DsvWebhookController(http.Controller):
                 carrier.id, source_hash[:16],
             )
             return {'status': 'ok'}
-        request.env['freight.webhook.event'].sudo().create({
-            'carrier_id': carrier.id,
-            'source_hash': source_hash,
-            'event_type': event_type,
-        })
+        try:
+            with request.env.cr.savepoint():
+                request.env['freight.webhook.event'].sudo().create({
+                    'carrier_id': carrier.id,
+                    'source_hash': source_hash,
+                    'event_type': event_type,
+                })
+        except Exception as exc:
+            if 'unique' in str(exc).lower():
+                _logger.info(
+                    'DSV webhook: concurrent duplicate ignored (carrier=%s hash=%s)',
+                    carrier.id, source_hash[:16],
+                )
+                return {'status': 'ok'}
+            raise
 
         if event_type == 'TRACKING_UPDATE':
             request.env['freight.booking'].sudo()._handle_dsv_tracking_webhook(carrier, body)

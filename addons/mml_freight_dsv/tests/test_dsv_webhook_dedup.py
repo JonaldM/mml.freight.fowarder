@@ -54,30 +54,29 @@ class TestDsvWebhookDedup(TransactionCase):
 
     def test_duplicate_webhook_dispatch_skipped(self):
         """Second delivery of identical webhook body must be silently ignored — no handler called."""
+        import json
+        from odoo.addons.mml_freight_dsv.controllers.dsv_webhook import DsvWebhookController
+
         body = b'{"eventType":"TRACKING_UPDATE","shipmentId":"SH-DUP-001"}'
         h = self._make_hash(body)
+
         # Pre-seed the event log as if first delivery already processed
-        self.env['freight.webhook.event'].create({
+        self.env['freight.webhook.event'].sudo().create({
             'carrier_id': self.carrier.id,
             'source_hash': h,
             'event_type': 'TRACKING_UPDATE',
         })
-        mock_handler = MagicMock()
-        with patch.object(
-            type(self.env['freight.booking']),
-            '_handle_dsv_tracking_webhook',
-            mock_handler,
-        ):
-            # Simulate what the controller does after HMAC validation
-            existing = self.env['freight.webhook.event'].search([
-                ('carrier_id', '=', self.carrier.id),
-                ('source_hash', '=', h),
-            ], limit=1)
-            if not existing:
-                self.env['freight.webhook.event'].create({
-                    'carrier_id': self.carrier.id,
-                    'source_hash': h,
-                    'event_type': 'TRACKING_UPDATE',
-                })
-                # Would dispatch here
+
+        controller = DsvWebhookController()
+
+        mock_request = MagicMock()
+        mock_request.httprequest.get_data.return_value = body
+        mock_request.httprequest.headers.get.return_value = 'sha256=dummy'
+        mock_request.get_json_data.return_value = json.loads(body)
+        mock_request.env = self.env
+
+        with patch('odoo.addons.mml_freight_dsv.controllers.dsv_webhook.request', mock_request), \
+             patch('odoo.addons.mml_freight_dsv.controllers.dsv_webhook._validate_dsv_signature', return_value=True), \
+             patch.object(type(self.env['freight.booking']), '_handle_dsv_tracking_webhook') as mock_handler:
+            controller.dsv_webhook(self.carrier.id)
             mock_handler.assert_not_called()
