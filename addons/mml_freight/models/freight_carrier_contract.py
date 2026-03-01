@@ -55,3 +55,34 @@ class FreightCarrierContract(models.Model):
             c.is_active = bool(
                 c.date_start and c.date_end and c.date_start <= today <= c.date_end
             )
+
+    ACTIVE_BOOKING_STATES = ['confirmed', 'cargo_ready', 'picked_up', 'in_transit',
+                              'arrived_port', 'customs', 'delivered', 'received']
+
+    utilized_quantity = fields.Float(
+        'Utilized', compute='_compute_utilization', store=False, digits=(10, 2),
+        help='Sum of unit_quantity across confirmed/in-transit/delivered bookings in this contract period.',
+    )
+    remaining_quantity = fields.Float(
+        'Remaining', compute='_compute_utilization', store=False, digits=(10, 2),
+    )
+    utilization_pct = fields.Float(
+        'Utilization %', compute='_compute_utilization', store=False, digits=(5, 1),
+    )
+
+    def _compute_utilization(self):
+        for contract in self:
+            if not contract.id:
+                contract.utilized_quantity = 0.0
+                contract.remaining_quantity = contract.committed_quantity
+                contract.utilization_pct = 0.0
+                continue
+            bookings = self.env['freight.booking'].search([
+                ('contract_id', '=', contract.id),
+                ('state', 'in', self.ACTIVE_BOOKING_STATES),
+            ])
+            utilized = sum(bookings.mapped('unit_quantity'))
+            committed = contract.committed_quantity or 1.0
+            contract.utilized_quantity = utilized
+            contract.remaining_quantity = contract.committed_quantity - utilized
+            contract.utilization_pct = utilized / committed * 100
