@@ -1,3 +1,4 @@
+import datetime
 import logging
 from odoo import models, fields, api
 
@@ -99,7 +100,6 @@ class FreightCarrierContract(models.Model):
         Threshold: utilization_pct < 50 AND days_remaining < 90.
         Posts a chatter note on the contract record.
         """
-        import datetime
         today = fields.Date.today()
         threshold_date = today + datetime.timedelta(days=90)
 

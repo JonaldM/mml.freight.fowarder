@@ -14,7 +14,7 @@
                   decoration-success="state == 'booked'"
                   decoration-muted="state == 'cancelled'">
                 <field name="name" string="Tender Ref." decoration-bf="1" class="font-monospace"/>
-                <field name="purchase_order_id" string="PO"/>
+                <field name="po_ids" string="POs" widget="many2many_tags" optional="show"/>
                 <field name="origin_partner_id" string="Supplier"/>
                 <field name="origin_country_id" string="From" optional="show"/>
                 <field name="dest_country_id" string="To" optional="show"/>
@@ -66,7 +66,7 @@
                     </div>
                     <group>
                         <group string="Shipment">
-                            <field name="purchase_order_id"/>
+                            <field name="po_ids" string="POs" widget="many2many_tags" optional="show"/>
                             <field name="incoterm_id"/>
                             <field name="freight_mode_preference"/>
                             <field name="selection_mode"/>
@@ -184,7 +184,7 @@
                   decoration-warning="state in ('quoted', 'partial')"
                   class="o_freight_pending_list">
                 <field name="name" string="Tender" decoration-bf="1" class="font-monospace"/>
-                <field name="purchase_order_id" string="PO"/>
+                <field name="po_ids" string="POs" widget="many2many_tags" optional="show"/>
                 <field name="origin_country_id" string="From"/>
                 <field name="dest_country_id" string="To"/>
                 <field name="total_cbm" string="CBM"/>
