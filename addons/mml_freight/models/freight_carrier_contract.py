@@ -13,8 +13,15 @@ COMMITMENT_UNITS = [
 class FreightCarrierContract(models.Model):
     _name = 'freight.carrier.contract'
     _description = 'Freight Carrier Contract'
-    _inherit = ['mail.thread']
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'date_start desc'
+    _sql_constraints = [
+        (
+            'date_end_after_start',
+            'CHECK(date_end >= date_start)',
+            'Contract end date must be on or after the start date.',
+        ),
+    ]
 
     name = fields.Char('Contract Name', required=True)
     carrier_id = fields.Many2one(

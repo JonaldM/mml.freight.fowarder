@@ -6,7 +6,10 @@ class TestCarrierContract(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        prod = cls.env['product.product'].search([], limit=1)
+        prod = cls.env['product.product'].create({
+            'name': 'Test Freight Service',
+            'type': 'service',
+        })
         cls.carrier = cls.env['delivery.carrier'].create({
             'name': 'DSV Test',
             'product_id': prod.id,
