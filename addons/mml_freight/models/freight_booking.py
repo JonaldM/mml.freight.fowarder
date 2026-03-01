@@ -28,6 +28,16 @@ TRANSPORT_MODES = [
     ('express', 'Express'),
 ]
 
+# DSV eventType → booking.state — shared by tracking cron and webhook handler
+_DSV_BOOKING_STATE_MAP = {
+    'BOOKING_CONFIRMED': 'confirmed',
+    'CARGO_RECEIVED':    'cargo_ready',
+    'DEPARTURE':         'in_transit',
+    'ARRIVED_POD':       'arrived_port',
+    'CUSTOMS_CLEARED':   'customs',
+    'DELIVERED':         'delivered',
+}
+
 
 class FreightBooking(models.Model):
     _name = 'freight.booking'
@@ -236,6 +246,38 @@ class FreightBooking(models.Model):
             limit=1,
         )
 
+    def _check_inward_order_updates(self, prev_eta, prev_vessel):
+        """Queue an inward order UPDATE if ETA drifted > 24h or vessel TBA→known."""
+        eta_drifted = False
+        if prev_eta and self.eta:
+            eta_drifted = abs((self.eta - prev_eta).total_seconds()) > 86400
+        vessel_now_known = not prev_vessel and bool(self.vessel_name)
+        if eta_drifted or vessel_now_known:
+            self._queue_inward_order_update()
+
+    def _queue_inward_order_update(self):
+        """Create a queued 3pl.message UPDATE for this booking's inward order."""
+        if '3pl.connector' not in self.env:
+            return
+        po = self.purchase_order_id
+        if not po:
+            return
+        warehouse = po.picking_type_id.warehouse_id if po.picking_type_id else False
+        if not warehouse:
+            return
+        connector = self._resolve_3pl_connector(warehouse, po)
+        if not connector:
+            return
+        msg = self.env['3pl.message'].create({
+            'connector_id':  connector.id,
+            'direction':     'outbound',
+            'document_type': 'inward_order',
+            'action':        'update',
+            'ref_model':     'purchase.order',
+            'ref_id':        po.id,
+        })
+        _logger.info('freight.booking %s: queued inward_order UPDATE %s', self.name, msg.id)
+
     def _handle_dsv_tracking_webhook(self, carrier, body):
         """Handle DSV tracking webhook payload.
 
@@ -257,21 +299,50 @@ class FreightBooking(models.Model):
                 _logger.error('Tracking sync failed for booking %s: %s', booking.name, e)
 
     def _sync_tracking(self):
-        """Sync tracking events from carrier adapter."""
+        """Sync tracking events from carrier adapter; auto-advance state; detect ETA drift."""
         adapter = self.env['freight.adapter.registry'].get_adapter(self.carrier_id)
         if not adapter:
             return
-        events = adapter.get_tracking(self)
+
+        prev_eta    = self.eta
+        prev_vessel = self.vessel_name or ''
+        events      = adapter.get_tracking(self)
+
+        latest_state = None
+        latest_eta   = None
+        state_order  = [s[0] for s in BOOKING_STATES]
+
         for evt in events:
-            existing = self.tracking_event_ids.filtered(
-                lambda e: e.status == evt.get('status') and str(e.event_date) == evt.get('event_date', '')
+            exists = self.tracking_event_ids.filtered(
+                lambda e: e.status == evt.get('status')
+                and str(e.event_date) == evt.get('event_date', '')
             )
-            if not existing:
+            if not exists:
                 self.env['freight.tracking.event'].create({
-                    'booking_id': self.id,
-                    'event_date': evt['event_date'],
-                    'status': evt['status'],
-                    'location': evt.get('location', ''),
+                    'booking_id':  self.id,
+                    'event_date':  evt['event_date'],
+                    'status':      evt['status'],
+                    'location':    evt.get('location', ''),
                     'description': evt.get('description', ''),
                     'raw_payload': evt.get('raw_payload', ''),
                 })
+            if evt.get('status') in state_order:
+                latest_state = evt['status']
+            if evt.get('_new_eta'):
+                latest_eta = evt['_new_eta']
+
+        # Update ETA
+        if latest_eta:
+            try:
+                self.eta = dateutil.parser.parse(latest_eta).replace(tzinfo=None)
+            except Exception:
+                pass
+
+        # Auto-advance state (never go backwards)
+        if latest_state and latest_state in state_order:
+            cur_idx = state_order.index(self.state) if self.state in state_order else -1
+            new_idx = state_order.index(latest_state)
+            if new_idx > cur_idx:
+                self.state = latest_state
+
+        self._check_inward_order_updates(prev_eta, prev_vessel)

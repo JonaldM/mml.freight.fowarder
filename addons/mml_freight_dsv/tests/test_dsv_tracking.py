@@ -95,3 +95,62 @@ class TestDsvTracking(TransactionCase):
             with patch('requests.get', return_value=_resp(200, data)):
                 events = self._adapter().get_tracking(self.booking)
         self.assertEqual(events[0]['status'], 'exception_hold')
+
+
+class TestEtaDriftDetection(TransactionCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.service_product = cls.env['product.product'].create({
+            'name': 'ETA Service Product',
+            'type': 'service',
+        })
+        cls.carrier = cls.env['delivery.carrier'].create({
+            'name': 'ETA Drift',
+            'product_id': cls.service_product.id,
+            'delivery_type': 'dsv_generic',
+        })
+        from datetime import datetime
+        cls.orig_eta = datetime(2026, 6, 15)
+        partner = cls.env['res.partner'].create({'name': 'DS'})
+        cls.po  = cls.env['purchase.order'].create({'partner_id': partner.id})
+        cls.booking = cls.env['freight.booking'].create({
+            'carrier_id':          cls.carrier.id,
+            'currency_id':         cls.env.company.currency_id.id,
+            'carrier_shipment_id': 'SH_ETA',
+            'purchase_order_id':   cls.po.id,
+            'state':               'in_transit',
+            'eta':                 cls.orig_eta,
+            'vessel_name':         '',
+        })
+
+    def test_no_update_when_eta_change_under_24h(self):
+        from datetime import timedelta
+        from unittest.mock import patch
+        self.booking.eta = self.orig_eta + timedelta(hours=2)
+        with patch.object(self.booking, '_queue_inward_order_update') as m:
+            self.booking._check_inward_order_updates(self.orig_eta, '')
+        m.assert_not_called()
+
+    def test_update_queued_when_eta_drifts_over_24h(self):
+        from datetime import timedelta
+        from unittest.mock import patch
+        self.booking.eta = self.orig_eta + timedelta(hours=25)
+        with patch.object(self.booking, '_queue_inward_order_update') as m:
+            self.booking._check_inward_order_updates(self.orig_eta, '')
+        m.assert_called_once()
+
+    def test_update_queued_when_vessel_becomes_known(self):
+        from unittest.mock import patch
+        self.booking.vessel_name = 'MSC Oscar'
+        with patch.object(self.booking, '_queue_inward_order_update') as m:
+            self.booking._check_inward_order_updates(self.orig_eta, '')  # prev_vessel = ''
+        m.assert_called_once()
+
+    def test_no_update_when_vessel_was_already_known(self):
+        from unittest.mock import patch
+        self.booking.vessel_name = 'MSC Oscar'
+        with patch.object(self.booking, '_queue_inward_order_update') as m:
+            self.booking._check_inward_order_updates(self.orig_eta, 'MSC Oscar')
+        m.assert_not_called()
