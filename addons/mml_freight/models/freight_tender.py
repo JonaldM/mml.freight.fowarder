@@ -141,6 +141,19 @@ class FreightTender(models.Model):
         self.ensure_one()
         if self.state not in ('draft', 'partial'):
             raise UserError('Can only request quotes from Draft or Partial Quotes state.')
+        # Pessimistic lock — prevents concurrent calls creating duplicate quote records per carrier.
+        try:
+            self.env.cr.execute(
+                'SELECT id FROM freight_tender WHERE id = %s FOR UPDATE NOWAIT', [self.id]
+            )
+        except psycopg2.errors.LockNotAvailable:
+            raise UserError(
+                'Another operation is in progress for this tender. Please try again.'
+            )
+        # Re-check state after lock (another request may have changed it while we waited)
+        self.invalidate_recordset()
+        if self.state not in ('draft', 'partial'):
+            raise UserError('Tender state changed — please refresh and try again.')
         registry = self.env['freight.adapter.registry']
         carriers = registry.get_eligible_carriers(self)
         if not carriers:

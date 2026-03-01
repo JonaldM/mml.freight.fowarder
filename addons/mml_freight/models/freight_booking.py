@@ -150,6 +150,8 @@ class FreightBooking(models.Model):
     def action_confirm_with_dsv(self):
         """Confirm booking with DSV API, update vessel/ETA fields, queue 3PL inward order."""
         self.ensure_one()
+        if self.state == 'confirmed':
+            raise UserError('This booking is already confirmed.')
         registry = self.env['freight.adapter.registry']
         adapter = registry.get_adapter(self.carrier_id)
         if not adapter:
