@@ -190,9 +190,9 @@ class FreightTender(models.Model):
         received = self.quote_line_ids.filtered(lambda q: q.state == 'received')
         pending_or_error = self.quote_line_ids.filtered(lambda q: q.state in ('pending', 'error'))
         if received and not pending_or_error:
-            self.state = 'quoted'
+            self.write({'state': 'quoted'})
         else:
-            self.state = 'partial'
+            self.write({'state': 'partial'})
         return True
 
     def action_auto_select(self):
