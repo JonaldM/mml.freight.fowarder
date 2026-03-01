@@ -62,6 +62,25 @@ class DsvWebhookController(http.Controller):
         # Log only the event type — not the body — to avoid PII in server logs.
         _logger.info('DSV webhook: carrier=%s event_type=%s', carrier.id, event_type)
 
+        # Deduplication: reject retried webhook payloads using SHA-256 of raw body.
+        # Identical payloads from DSV retries are silently ignored (same 200 response).
+        source_hash = hashlib.sha256(body_bytes).hexdigest()
+        existing = request.env['freight.webhook.event'].sudo().search([
+            ('carrier_id', '=', carrier.id),
+            ('source_hash', '=', source_hash),
+        ], limit=1)
+        if existing:
+            _logger.info(
+                'DSV webhook: duplicate payload ignored (carrier=%s hash=%s)',
+                carrier.id, source_hash[:16],
+            )
+            return {'status': 'ok'}
+        request.env['freight.webhook.event'].sudo().create({
+            'carrier_id': carrier.id,
+            'source_hash': source_hash,
+            'event_type': event_type,
+        })
+
         if event_type == 'TRACKING_UPDATE':
             request.env['freight.booking'].sudo()._handle_dsv_tracking_webhook(carrier, body)
         elif event_type == 'Invoice':

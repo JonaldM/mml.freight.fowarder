@@ -5,6 +5,7 @@ from . import freight_tender_quote
 from . import freight_booking
 from . import freight_tracking_event
 from . import freight_document
+from . import freight_webhook_event
 from . import freight_adapter_registry
 from . import purchase_order
 from . import product_template

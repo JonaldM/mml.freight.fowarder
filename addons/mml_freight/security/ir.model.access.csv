@@ -14,3 +14,5 @@ access_freight_tracking_event_manager,freight.tracking.event manager,model_freig
 access_freight_document_user,freight.document user,model_freight_document,stock.group_stock_user,1,0,0,0
 access_freight_document_manager,freight.document manager,model_freight_document,stock.group_stock_manager,1,1,1,1
 access_freight_adapter_registry,freight.adapter.registry all,model_freight_adapter_registry,base.group_user,1,0,0,0
+access_freight_webhook_event_user,freight.webhook.event user,model_freight_webhook_event,stock.group_stock_user,1,0,0,0
+access_freight_webhook_event_manager,freight.webhook.event manager,model_freight_webhook_event,stock.group_stock_manager,1,1,1,1
