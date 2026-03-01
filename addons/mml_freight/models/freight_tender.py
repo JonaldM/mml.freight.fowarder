@@ -304,9 +304,14 @@ class FreightTender(models.Model):
             ('tender_expiry', '<', now),
             ('tender_expiry', '!=', False),
         ])
-        for tender in overdue:
-            pending = tender.quote_line_ids.filtered(lambda q: q.state == 'pending')
-            if pending:
-                pending.write({'state': 'expired'})
-            tender.write({'state': 'expired'})
-            _logger.info('Freight cron: tender %s expired', tender.name)
+        if overdue:
+            # Single query for all pending quotes on overdue tenders (avoids N+1)
+            pending_quotes = self.env['freight.tender.quote'].search([
+                ('tender_id', 'in', overdue.ids),
+                ('state', '=', 'pending'),
+            ])
+            if pending_quotes:
+                pending_quotes.write({'state': 'expired'})
+            overdue.write({'state': 'expired'})
+            for tender in overdue:
+                _logger.info('Freight cron: tender %s expired', tender.name)
