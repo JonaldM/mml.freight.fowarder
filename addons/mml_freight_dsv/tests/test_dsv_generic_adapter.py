@@ -70,14 +70,19 @@ class TestDsvGenericAdapter(TransactionCase):
             'totalCharge': {'amount': 2500.0, 'currency': 'NZD'},
             'transitDays': 25,
         }]}
-        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.get_token', return_value='T'):
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
             with patch('requests.post', return_value=_resp(200, dsv_data)):
                 results = self._adapter().request_quote(self.tender)
         self.assertIsInstance(results, list)
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['service_name'], 'DSV Sea LCL')
-        self.assertAlmostEqual(results[0]['total_rate'], 2500.0)
-        self.assertEqual(results[0]['transport_mode'], 'sea_lcl')
+        q = results[0]
+        self.assertEqual(q['service_name'], 'DSV Sea LCL')
+        self.assertAlmostEqual(q['total_rate'], 2500.0)
+        self.assertEqual(q['transport_mode'], 'sea_lcl')
+        self.assertEqual(q['carrier_quote_ref'], 'SVC001')
+        self.assertEqual(q['currency'], 'NZD')
+        self.assertAlmostEqual(q['transit_days'], 25.0)
+        self.assertIn('SVC001', q['raw_response'])  # raw response contains the service code
 
     def test_request_quote_multiple_quotes_in_response(self):
         dsv_data = {'quotes': [
@@ -86,28 +91,39 @@ class TestDsvGenericAdapter(TransactionCase):
             {'serviceCode': 'B', 'serviceName': 'Air', 'productType': 'AIR_EXPRESS',
              'totalCharge': {'amount': 5000.0, 'currency': 'NZD'}, 'transitDays': 3},
         ]}
-        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.get_token', return_value='T'):
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
             with patch('requests.post', return_value=_resp(200, dsv_data)):
                 results = self._adapter().request_quote(self.tender)
         self.assertEqual(len(results), 2)
 
     def test_request_quote_401_retries_once(self):
         """401 triggers token refresh and one retry; both fail → error dict returned."""
-        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.get_token', return_value='T'):
-            with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.refresh_token', return_value='T2'):
-                with patch('requests.post', return_value=_resp(401)):
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
+            with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.refresh_token', return_value='T2'):
+                with patch('requests.post', return_value=_resp(401)) as mock_post:
                     results = self._adapter().request_quote(self.tender)
         self.assertTrue(all(r.get('_error') for r in results))
+        # Should have been called twice: initial attempt + one retry after token refresh
+        self.assertEqual(mock_post.call_count, 2)
 
     def test_request_quote_500_returns_error_dict(self):
-        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.get_token', return_value='T'):
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
             with patch('requests.post', return_value=_resp(500)):
                 results = self._adapter().request_quote(self.tender)
         self.assertTrue(all(r.get('_error') for r in results))
 
     def test_request_quote_network_error_returns_error_dict(self):
         import requests as _req
-        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.get_token', return_value='T'):
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='T'):
             with patch('requests.post', side_effect=_req.ConnectionError('timeout')):
                 results = self._adapter().request_quote(self.tender)
         self.assertTrue(all(r.get('_error') for r in results))
+
+    def test_request_quote_auth_failure_returns_error_dict(self):
+        """If get_token() raises DsvAuthError, request_quote returns error dicts."""
+        from odoo.addons.mml_freight_dsv.adapters.dsv_auth import DsvAuthError
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token',
+                   side_effect=DsvAuthError('bad credentials')):
+            results = self._adapter().request_quote(self.tender)
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0].get('_error'))

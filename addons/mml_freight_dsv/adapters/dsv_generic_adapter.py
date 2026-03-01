@@ -42,7 +42,7 @@ class DsvGenericAdapter(FreightAdapterBase):
     def _post_with_retry(self, url, payload, token):
         """POST to DSV. Retries once on 401 after token refresh."""
         resp = requests.post(url, json=payload, headers=self._headers(token), timeout=30)
-        if resp.status_code in (401, 403):
+        if resp.status_code == 401:
             try:
                 token = refresh_token(self.carrier)
             except DsvAuthError:
@@ -56,7 +56,12 @@ class DsvGenericAdapter(FreightAdapterBase):
 
     def request_quote(self, tender):
         """Return list of quote dicts. Error conditions return dicts with _error=True."""
-        token      = get_token(self.carrier)
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            _logger.error('DSV token acquisition failed: %s', e)
+            return [{'_error': True, 'error_message': f'Auth failed: {e}'}]
+
         mdm        = self.carrier.x_dsv_mdm or ''
         total_cbm  = tender.total_cbm or 0.0
         mode_pref  = tender.freight_mode_preference or 'any'
@@ -77,6 +82,7 @@ class DsvGenericAdapter(FreightAdapterBase):
                 results.append({'_error': True, 'error_message': f'DSV HTTP {resp.status_code}'})
                 continue
 
+            raw = resp.text
             for quote in (resp.json().get('quotes') or []):
                 charge = quote.get('totalCharge') or {}
                 mode   = _DSV_PRODUCT_TYPE_TO_MODE.get(
@@ -98,7 +104,7 @@ class DsvGenericAdapter(FreightAdapterBase):
                     'rate_valid_until':        None,
                     'estimated_pickup_date':   None,
                     'estimated_delivery_date': None,
-                    'raw_response':            str(resp.json()),
+                    'raw_response':            raw,
                 })
         return results
 
