@@ -48,6 +48,7 @@ class DsvMockAdapter(FreightAdapterBase):
             'carrier_booking_id': f'DSV-MOCK-BK-{next(_counter):04d}',
             'carrier_shipment_id': None,
             'carrier_tracking_url': None,
+            'requires_manual_confirmation': True,
         }
 
     def get_tracking(self, booking):
@@ -77,7 +78,7 @@ class DsvMockAdapter(FreightAdapterBase):
         arrive from DSV's sandbox; in production, from the live feed.  Either way,
         the payload schema and processing logic are identical.
         """
-        self.env['freight.booking']._handle_dsv_tracking_webhook(self.carrier, body)
+        self.env['freight.booking'].sudo()._handle_dsv_tracking_webhook(self.carrier, body)
 
     def confirm_booking(self, booking):
         if not self._demo():

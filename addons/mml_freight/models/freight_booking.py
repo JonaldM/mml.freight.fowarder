@@ -147,6 +147,7 @@ class FreightBooking(models.Model):
     def action_confirm(self):
         self.write({'state': 'confirmed'})
         self._queue_3pl_inward_order()
+        self._build_inward_order_payload()
         return True
 
     def action_confirm_with_dsv(self):

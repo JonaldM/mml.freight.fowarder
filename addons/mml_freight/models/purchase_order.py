@@ -50,7 +50,7 @@ class PurchaseOrder(models.Model):
         related='freight_tender_id.booking_id.booked_rate',
         string='Freight Cost',
         readonly=True,
-        currency_field='currency_id',
+        currency_field='freight_tender_id.booking_id.currency_id',
     )
     freight_carrier_name = fields.Char(
         related='freight_tender_id.booking_id.carrier_id.name',
@@ -85,8 +85,10 @@ class PurchaseOrder(models.Model):
             else:
                 po.freight_responsibility = 'na'
 
-    @api.depends('freight_tender_id')
     def _compute_tender_count(self):
+        # No @api.depends: the count depends on freight.tender.po_ids (M2M from the tender side),
+        # which cannot be tracked via a PO-side @api.depends declaration. Omitting @api.depends
+        # tells Odoo to recompute on every read (no caching), keeping the value always fresh.
         # Use search to count tenders linked via the M2M relation.
         # read_group on M2M fields is not straightforward in Odoo ORM, so we use
         # a single search and group the result in Python — acceptable for small sets.

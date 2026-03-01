@@ -71,6 +71,51 @@ class TestDsvMockAdapter(TransactionCase):
         self.carrier.x_dsv_fcl40_upper = 40.0
         self.assertAlmostEqual(self.carrier.x_dsv_lcl_fcl_threshold, 15.0)
 
+    def test_create_booking_returns_requires_manual_confirmation(self):
+        """Demo create_booking must return requires_manual_confirmation=True to match production.
+
+        Bug: the mock adapter omits this key, so action_book() calls action_confirm()
+        instead of waiting for the manual action_confirm_with_dsv() step — bypassing
+        the two-step DSV flow and leaving 3PL messages stuck in draft (Bug 1 compounded).
+        """
+        t = self._tender()
+        nzd = self.env['res.currency'].search([('name', '=', 'NZD')], limit=1) or self.env.company.currency_id
+        q = self.env['freight.tender.quote'].create({
+            'tender_id': t.id, 'carrier_id': self.carrier.id,
+            'state': 'received', 'currency_id': nzd.id, 'base_rate': 1800.0,
+        })
+        result = self.adapter.create_booking(t, q)
+        self.assertTrue(
+            result.get('requires_manual_confirmation'),
+            'Demo create_booking must return requires_manual_confirmation=True to match live DSV behaviour',
+        )
+
+    def test_handle_webhook_accesses_booking_model_via_sudo(self):
+        """handle_webhook must call .sudo() before _handle_dsv_tracking_webhook.
+
+        Bug: DsvMockAdapter.handle_webhook calls self.env['freight.booking']._handle_dsv_...
+        directly without .sudo(), unlike mf_adapter.handle_webhook and the DSV webhook
+        controller which both use .sudo(). This causes AccessError in low-privilege contexts.
+        """
+        from unittest.mock import patch
+
+        sudo_calls = []
+        booking_model = self.env['freight.booking']
+        original_sudo = type(booking_model).sudo
+
+        def recording_sudo(self_model, *args, **kwargs):
+            sudo_calls.append(True)
+            return original_sudo(self_model, *args, **kwargs)
+
+        with patch.object(type(booking_model), 'sudo', recording_sudo):
+            # Minimal body — no matching booking so handler exits early, but sudo must still be called
+            self.adapter.handle_webhook({'shipmentId': 'NONEXISTENT', 'events': []})
+
+        self.assertTrue(
+            sudo_calls,
+            'handle_webhook must call .sudo() on freight.booking before _handle_dsv_tracking_webhook',
+        )
+
     def test_feeder_vessel_fields_exist(self):
         b = self.env['freight.booking'].create({
             'carrier_id': self.carrier.id,

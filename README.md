@@ -180,11 +180,11 @@ odoo-bin --test-enable --stop-after-init \
 | `test_quote_ranking.py` | is_cheapest, is_fastest, rank_by_cost, cost_vs_cheapest_pct |
 | `test_auto_select.py` | Cheapest/fastest/manual modes, selection reason |
 | `test_tender_lifecycle.py` | State machine, sequence prefix, cancel, error guards |
-| `test_3pl_handoff.py` | Graceful no-op without connector; 3pl.message creation; connector priority and category routing |
+| `test_3pl_handoff.py` | Graceful no-op without connector; 3pl.message creation; connector priority and category routing; `action_confirm()` calls `_build_inward_order_payload()` |
 | `test_consolidated_pos.py` | Multi-PO tender (po_ids M2M), supplier_count/is_consolidated, shipment_group_ref, booking po_ids propagation, one 3PL message per PO, per-PO idempotency, multi-receipt landed cost |
-| `test_po_form_fields.py` | Responsibility recomputes, tender count, action_request_freight_tender |
+| `test_po_form_fields.py` | Responsibility recomputes, tender count cache freshness after M2M link, `freight_cost` currency field, `action_request_freight_tender` |
 | `test_dsv_auth.py` | Demo short-circuit, token cache, near-expiry refresh, 401/403 handling |
-| `test_dsv_mock_adapter.py` | Mock quote values, booking ref prefix, tracking events, live guard |
+| `test_dsv_mock_adapter.py` | Mock quote values, booking ref prefix, tracking events, live guard; `requires_manual_confirmation` parity with live adapter; `handle_webhook` sudo guard |
 | `test_cron_jobs.py` | Tracking cron, token refresh cron, cron XML records present |
 | `test_demo_install.py` | Demo carriers, partner, product dimensions, demo PO |
 | `test_kn_adapter.py` | K+N mock: manual mode (no quotes), API mode (canned quotes), booking ref, tracking events, registry resolution |

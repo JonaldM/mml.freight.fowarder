@@ -172,6 +172,24 @@ class Test3plHandoff(TransactionCase):
         connector = b._resolve_3pl_connector(warehouse, po)
         self.assertEqual(connector.id, catchall.id, 'Should fall back to catch-all when no category match')
 
+    def test_action_confirm_builds_inward_order_payload(self):
+        """action_confirm() must call _build_inward_order_payload() after queueing 3PL messages.
+
+        Bug: action_confirm() calls _queue_3pl_inward_order() (creates draft 3pl.messages)
+        but never calls _build_inward_order_payload() (advances them to queued with XML).
+        Messages stay stuck in draft — Mainfreight never receives the inward order.
+        """
+        from unittest.mock import patch
+        b = self.env['freight.booking'].create({
+            'carrier_id': self.carrier.id,
+            'po_ids': [(4, self.po.id)],
+            'currency_id': self.env.company.currency_id.id,
+        })
+        with patch.object(type(b), '_build_inward_order_payload') as mock_build:
+            b.action_confirm()
+        # assert_called_once() (not _with) — class-level patch receives `self` as first arg
+        mock_build.assert_called_once()
+
     def test_build_inward_order_payload_populates_message(self):
         """_build_inward_order_payload() writes XML to tpl_message_id and advances state to queued."""
         if '3pl.message' not in self.env:
