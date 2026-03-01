@@ -97,8 +97,8 @@ class TestFetchLabel(TransactionCase):
     def test_action_fetch_label_raises_when_no_adapter(self):
         """action_fetch_label raises UserError when no adapter is registered for the carrier."""
         from odoo.exceptions import UserError
-        with patch.object(
-            type(self.env['freight.adapter.registry']), 'get_adapter',
+        with patch(
+            'odoo.addons.mml_freight.models.freight_booking.FreightAdapterRegistry.get_adapter',
             return_value=None,
         ):
             with self.assertRaises(UserError):
