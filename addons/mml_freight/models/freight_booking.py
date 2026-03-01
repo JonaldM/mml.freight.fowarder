@@ -1,6 +1,7 @@
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 from odoo.addons.mml_freight.models.freight_adapter_registry import FreightAdapterRegistry  # noqa: F401 — imported so tests can patch via this module's namespace
+import datetime
 import re
 import dateutil.parser
 import logging
@@ -430,7 +431,7 @@ class FreightBooking(models.Model):
 
             if pickup and delivery:
                 delta = delivery - pickup
-                booking.transit_days_actual = delta.total_seconds() / 86400
+                booking.transit_days_actual = max(0.0, delta.total_seconds() / 86400)
             else:
                 booking.transit_days_actual = 0.0
 
@@ -442,7 +443,7 @@ class FreightBooking(models.Model):
                 req = booking.tender_id.requested_delivery_date
                 if req:
                     # Convert date to datetime at end-of-day for fair comparison
-                    req_dt = fields.Datetime.from_string(str(req) + ' 23:59:59')
+                    req_dt = datetime.datetime.combine(req, datetime.time(23, 59, 59))
                     booking.on_time = delivery <= req_dt
                 else:
                     booking.on_time = False
