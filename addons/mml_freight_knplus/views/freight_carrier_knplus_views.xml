@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Add 'K+N (Kuehne+Nagel)' to the delivery_type selection -->
     <record id="view_delivery_carrier_knplus_type" model="ir.ui.view">
         <field name="name">delivery.carrier.form.knplus.type</field>
         <field name="model">delivery.carrier</field>
@@ -8,6 +9,39 @@
             <field name="delivery_type" position="attributes">
                 <attribute name="selection_add">[('knplus', 'K+N (Kuehne+Nagel)')]</attribute>
             </field>
+        </field>
+    </record>
+
+    <!-- K+N configuration section in the freight carrier form -->
+    <record id="view_freight_carrier_knplus_form" model="ir.ui.view">
+        <field name="name">delivery.carrier.form.knplus</field>
+        <field name="model">delivery.carrier</field>
+        <field name="inherit_id" ref="mml_freight.view_freight_carrier_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='freight_config']" position="after">
+                <group string="K+N Configuration" name="knplus_config"
+                       invisible="delivery_type != 'knplus'">
+                    <field name="x_knplus_environment"/>
+                    <field name="x_knplus_quote_mode"/>
+                    <field name="x_knplus_account_number"/>
+                </group>
+                <group string="K+N Authentication" name="knplus_auth"
+                       invisible="delivery_type != 'knplus'">
+                    <p colspan="2" class="text-muted" style="font-size:smaller">
+                        Auth method (API key vs OAuth 2.0) is unconfirmed pending K+N
+                        onboarding. Populate the relevant fields once confirmed.
+                    </p>
+                    <field name="x_knplus_api_key" password="True"
+                           string="API Key / Subscription Key"/>
+                    <field name="x_knplus_client_id" string="OAuth Client ID"/>
+                    <field name="x_knplus_client_secret" password="True"
+                           string="OAuth Client Secret"/>
+                    <field name="x_knplus_access_token" readonly="1" password="True"
+                           string="Access Token (cached)"/>
+                    <field name="x_knplus_token_expiry" readonly="1"
+                           string="Token Expiry"/>
+                </group>
+            </xpath>
         </field>
     </record>
 </odoo>
