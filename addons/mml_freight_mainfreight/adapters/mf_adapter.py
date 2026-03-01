@@ -14,29 +14,79 @@ from odoo.addons.mml_freight_mainfreight.adapters.mf_auth import (
 _logger = logging.getLogger(__name__)
 
 # Mainfreight Tracking API event code → freight.booking state
-# Full code list: https://developer.mainfreight.com/tracking-api/code-list
-# TODO: expand this map with full event code list from Mainfreight developer portal
+#
+# Keys are UPPERCASE with underscores stripped so lookup is case/style-agnostic:
+# PascalCase "CargoDelivered" → upper → "CARGODELIVERED" ✓
+# UPPER_SNAKE "CARGO_DELIVERED" → upper+strip → "CARGODELIVERED" ✓
+#
+# Codes sourced from:
+#   - Mainfreight developer portal code-list page (public, unauthenticated)
+#   - Subscription API webhook documentation example payloads
+#   - Transport/Warehousing API grouping level descriptions
+# Expand with any additional codes observed in live UAT responses.
 _MF_EVENT_STATE_MAP = {
-    # Booking / pre-departure
-    'BOOKING_CONFIRMED':    'confirmed',
-    'CARGO_RECEIVED':       'cargo_ready',
-    'PICKED_UP':            'cargo_ready',
-    # In transit
-    'DEPARTURE':            'in_transit',
-    'DEPARTED':             'in_transit',
-    'GATEWAY_SCAN':         'in_transit',
-    'IN_TRANSIT':           'in_transit',
-    # Arrival
-    'PORT_ARRIVAL':         'arrived_port',
-    'ARRIVED':              'arrived_port',
-    'ARRIVED_DESTINATION':  'arrived_port',
-    # Customs
-    'CUSTOMS_LODGED':       'customs',
-    'CUSTOMS_CLEARED':      'customs',
-    # Delivery
-    'OUT_FOR_DELIVERY':     'delivered',
-    'DELIVERED':            'delivered',
-    'POD':                  'delivered',
+    # ─── Booking / pre-departure ──────────────────────────────────────────────
+    'BOOKINGCONFIRMED':             'confirmed',
+    'BOOKED':                       'confirmed',
+    'CREATED':                      'confirmed',   # A&O consolidation/shipment created
+    'ORDERRECEIVED':                'confirmed',   # Warehousing: order acknowledged
+    'ORDERRECEIVEDWITHERROR':       'confirmed',   # Warehousing EU: acknowledged w/ error
+
+    # ─── Cargo pickup / ready ─────────────────────────────────────────────────
+    'PICKUPREQUESTED':              'cargo_ready',
+    'CARGORECEIVED':                'cargo_ready',
+    'PICKEDUP':                     'cargo_ready',
+    'PICKUPCOMPLETE':               'cargo_ready',  # Transport NZ/AU
+    'PICKUPJOBCREATED':             'cargo_ready',
+    'LOCALDIRECTPICKUPJOBCREATED':  'cargo_ready',
+    'CALLCONFIRMEDPRIORTOPICKUP':   'cargo_ready',
+    'TRUCKARRIVED':                 'cargo_ready',  # Warehousing EU
+
+    # ─── Departure / in transit ───────────────────────────────────────────────
+    'DEPARTURE':                    'in_transit',
+    'DEPARTED':                     'in_transit',
+    'DEPARTEDORIGIN':               'in_transit',  # A&O consolidation departed origin
+    'LINEHAULTDEPARTED':            'in_transit',
+    'LINEHAULTDEPART':              'in_transit',
+    'GATEWAYSCAN':                  'in_transit',
+    'INTRANSIT':                    'in_transit',
+    'OUTFORDELIVERY':               'in_transit',  # Final-mile dispatch (not delivered yet)
+    'ONDELIVERYVEHICLE':            'in_transit',
+    'ORDERDEPARTED':                'in_transit',  # Warehousing EU: goods left warehouse
+    'LOADINGFINALIZED':             'in_transit',  # Warehousing EU
+
+    # ─── Port / terminal arrival ──────────────────────────────────────────────
+    'PORTARRIVAL':                  'arrived_port',
+    'ARRIVED':                      'arrived_port',
+    'ARRIVEDDESTINATION':           'arrived_port',
+    'ARRIVEDATTERMINAL':            'arrived_port',  # A&O consolidation at terminal
+    'ATDELIVERYDEPOT':              'arrived_port',
+    'ATTEMPTEDDELIVERY':            'arrived_port',  # Tried but not delivered
+    'PORTARRIVEDANDPROCESSED':      'arrived_port',
+    'INWARDSORDERRECEIVED':         'arrived_port',  # Warehousing EU: inward received
+
+    # ─── Customs ──────────────────────────────────────────────────────────────
+    'CUSTOMSLODGED':                'customs',
+    'CUSTOMSCLEARED':               'customs',
+    'DECLARATIONLODGED':            'customs',
+    'DECLARATIONCLEARED':           'customs',
+    'CUSTOMSASSESSED':              'customs',
+    'CUSTOMSHELD':                  'customs',
+    'CUSTOMSRELEASED':              'customs',
+    'BORDERCLEARANCE':              'customs',
+    'BORDERCLEARANCECLEARED':       'customs',
+
+    # ─── Delivery ─────────────────────────────────────────────────────────────
+    'DELIVERED':                    'delivered',
+    'DELIVERYCONFIRMED':            'delivered',
+    'CARGODELIVERED':               'delivered',         # A&O webhook example
+    'FULLCONTAINERDELIVERED':       'delivered',         # A&O webhook example
+    'GOODSDELIVERED':               'delivered',         # A&O webhook example
+    'POD':                          'delivered',         # Proof of delivery scan
+    'FINALIZED':                    'delivered',         # Warehousing: inward complete
+    'INWARDSORDERFINALIZED':        'delivered',         # Warehousing EU
+    'COMPLETE':                     'delivered',         # Warehousing: outbound complete
+    'ORDERCONFIRMATIONSENT':        'delivered',         # Warehousing EU: order dispatched
 }
 
 # Mainfreight reference type for tracking A&O shipments (in priority order)
@@ -157,8 +207,19 @@ class MFAdapter(FreightAdapterBase):
     def _normalise_events(self, data):
         """Normalise Mainfreight API tracking response to freight.tracking.event dicts.
 
-        Mainfreight /tracking/2.0/references/events returns an array of events
-        under a 'events' key (exact schema TBC — confirm with Mainfreight portal docs).
+        Handles both the polling response from /tracking/2.0/references/events
+        and the webhook content.reference.events structure (confirmed from
+        Mainfreight Subscription API docs).
+
+        Polling response:
+            {"events": [{"eventDateTime": "...", "code": "...", ...}]}
+
+        Webhook content.reference (passed as dict or already as events list):
+            {"events": [{"eventDateTime": "...", "code": "...", ...}]}
+
+        Event code lookup is case/style-agnostic: codes are uppercased and
+        underscores stripped before lookup so PascalCase "CargoDelivered" and
+        UPPER_SNAKE "CARGO_DELIVERED" both resolve correctly.
         """
         events_raw = []
         if isinstance(data, list):
@@ -171,13 +232,16 @@ class MFAdapter(FreightAdapterBase):
             if not isinstance(evt, dict):
                 continue
 
-            # Event code — try common field names from Mainfreight docs
-            code = (
+            # Event code — confirmed field name is 'code' (lowercase) in webhook events;
+            # also try eventCode/EventCode for polling responses.
+            code_raw = (
                 evt.get('eventCode') or evt.get('EventCode') or
                 evt.get('code') or evt.get('Code') or ''
-            ).upper()
+            ).strip()
+            # Normalize: uppercase + strip underscores/spaces → matches all code styles
+            code_norm = code_raw.upper().replace('_', '').replace(' ', '')
 
-            # Event datetime
+            # Event datetime — confirmed field name is 'eventDateTime' in webhook
             event_date_str = (
                 evt.get('eventDateTime') or evt.get('EventDateTime') or
                 evt.get('timestamp') or evt.get('Timestamp') or
@@ -193,11 +257,14 @@ class MFAdapter(FreightAdapterBase):
             # Description
             description = (
                 evt.get('description') or evt.get('Description') or
-                evt.get('eventDescription') or evt.get('EventDescription') or code
+                evt.get('eventDescription') or evt.get('EventDescription') or code_raw
             )
 
-            # Map code to booking state (or use code as-is if unmapped)
-            status = _MF_EVENT_STATE_MAP.get(code, code.lower().replace('_', ' ') if code else '')
+            # Map to booking state; fall back to human-readable form of raw code
+            status = _MF_EVENT_STATE_MAP.get(
+                code_norm,
+                code_raw.replace('_', ' ').replace('-', ' ').lower() if code_raw else '',
+            )
 
             if not event_date_str:
                 continue

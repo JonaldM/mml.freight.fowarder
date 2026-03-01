@@ -21,18 +21,28 @@ class FreightBookingMFExt(models.Model):
         before calling this method. body is the parsed 'content' dict from the
         webhook envelope.
 
-        Mainfreight webhook envelope:
+        Mainfreight webhook envelope (confirmed from Subscription API docs):
             {
-              "messageType": "TrackingUpdate",
-              "messageId": "...",
-              "timestamp": "...",
-              "content": { <event data here> }
+              "id": "uuid",
+              "metadata": {
+                "eventTypeCode": "StatusUpdateViaApi",
+                "serviceTypeCode": "AirAndOcean",
+                "referenceTypeCode": "JobNumber",
+                "eventCode": "CargoDelivered"
+              },
+              "content": {
+                "reference": {
+                  "ourReference": "<housebill/booking ref>",
+                  "yourReference": "<our ref>",
+                  "serviceType": "AirAndOcean",
+                  "trackingUrl": "...",
+                  "events": [{"eventDateTime": "...", "code": "..."}]
+                }
+              }
             }
 
-        The 'content' dict is passed as 'body' here. Its exact schema is TBC
-        until Mainfreight dev portal docs are confirmed. We handle the two
-        most likely structures: flat content with events array, and a direct
-        reference+events structure.
+        The controller passes body = payload['content'] here.
+        We extract the tracking reference and events from content.reference.
         """
 
         def _sanitise(value, max_len=255):
@@ -43,14 +53,24 @@ class FreightBookingMFExt(models.Model):
         if not isinstance(body, dict):
             return
 
-        # Resolve booking from the webhook content.
-        # Mainfreight likely sends the reference that triggered the event.
-        # Try common field names for the tracking reference.
+        # Webhook content structure (confirmed from Mainfreight Subscription API docs):
+        # content = {
+        #   "reference": {
+        #     "ourReference": "<housebill or booking ref>",
+        #     "yourReference": "<our PO or booking name>",
+        #     "serviceType": "AirAndOcean",
+        #     "trackingUrl": "...",
+        #     "events": [{"eventDateTime": "...", "code": "..."}]
+        #   }
+        # }
+        reference_block = body.get('reference') or body.get('Reference') or body
+
         tracking_ref = (
-            body.get('housebillNumber') or body.get('HousebillNumber') or
-            body.get('referenceValue') or body.get('ReferenceValue') or
-            body.get('consignmentNumber') or body.get('ConsignmentNumber') or
-            body.get('containerNumber') or body.get('ContainerNumber') or ''
+            reference_block.get('ourReference') or reference_block.get('OurReference') or
+            reference_block.get('housebillNumber') or reference_block.get('HousebillNumber') or
+            reference_block.get('referenceValue') or reference_block.get('ReferenceValue') or
+            reference_block.get('consignmentNumber') or reference_block.get('ConsignmentNumber') or
+            reference_block.get('containerNumber') or reference_block.get('ContainerNumber') or ''
         )
 
         booking = None
@@ -82,11 +102,13 @@ class FreightBookingMFExt(models.Model):
             _logger.warning('MF webhook: no adapter for carrier %s', carrier.id)
             return
 
-        # Extract events from content. Try common structures.
+        # Extract events from reference.events (confirmed webhook structure).
+        # Fall back to body-level events in case of alternate formats.
         raw_events = (
+            reference_block.get('events') or reference_block.get('Events') or
             body.get('events') or body.get('Events') or
-            # Single event wrapped in content
-            ([body] if 'eventCode' in body or 'EventCode' in body else [])
+            # Single event at content root (older/alternate format)
+            ([body] if 'eventCode' in body or 'code' in body else [])
         )
 
         if not raw_events:
