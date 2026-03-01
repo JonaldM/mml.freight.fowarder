@@ -756,10 +756,25 @@ class FreightBooking(models.Model):
 
     @api.model
     def cron_sync_tracking(self):
-        """Cron: sync tracking for all active bookings."""
+        """Cron: sync tracking for all active bookings.
+
+        Guard against concurrent cron runs: invalidate_recordset() + state re-check
+        before processing each booking. Pattern copied from stock_3pl_core
+        _process_outbound_queue. Prevents redundant DSV API calls when two cron
+        instances overlap.
+        """
         active_states = ['confirmed', 'cargo_ready', 'picked_up', 'in_transit', 'arrived_port', 'customs']
         bookings = self.search([('state', 'in', active_states)])
         for booking in bookings:
+            # Re-read from DB — another cron instance or user action may have
+            # changed state since the initial search().
+            booking.invalidate_recordset()
+            if booking.state not in active_states:
+                _logger.info(
+                    'cron_sync_tracking: skipping booking %s (state=%s, changed since fetch)',
+                    booking.name, booking.state,
+                )
+                continue
             try:
                 booking._sync_tracking()
             except Exception as e:
