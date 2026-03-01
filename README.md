@@ -29,7 +29,8 @@ See `docs/plans/roq-freight-interface-contract.md` for the full integration spec
 |--------|---------|---------|
 | `mml_freight` | Core orchestrator — tender, quote, booking, tracking models + adapter interface | Required |
 | `mml_freight_dsv` | DSV Generic (Road/Air/Sea/Rail) and DSV XPress adapters | Required for DSV |
-| `mml_freight_knplus` | K+N (Kuehne+Nagel) adapter stub — interface wired, API not implemented | Optional |
+| `mml_freight_knplus` | K+N (Kuehne+Nagel) adapter — mock/live delegation, credential fields, webhook receiver | Optional |
+| `mml_freight_mainfreight` | Mainfreight A&O adapter — tracking-only (no quote/booking API), webhook receiver, dedicated cron | Optional |
 | `mml_freight_demo` | Demo carriers, supplier, products, and a ready-to-tender PO for Harold | Dev/staging only |
 
 **External dependency:** `stock_3pl_core` from `E:\ClaudeCode\projects\mainfreight.3pl.intergration\addons\`. Must be installed before `mml_freight`.
@@ -59,11 +60,12 @@ stock_3pl_core installed and active
 ### Install order
 
 ```
-1. stock_3pl_core          (from mainfreight.3pl.intergration project)
+1. stock_3pl_core              (from mainfreight.3pl.intergration project)
 2. mml_freight
 3. mml_freight_dsv
-4. mml_freight_knplus      (optional)
-5. mml_freight_demo        (dev/staging only — do not install in production)
+4. mml_freight_knplus          (optional)
+5. mml_freight_mainfreight     (optional)
+6. mml_freight_demo            (dev/staging only — do not install in production)
 ```
 
 Via Odoo CLI:
@@ -100,6 +102,42 @@ Same as above with `Delivery Type = DSV XPress`, plus:
 | XPress DSV-Service-Auth | From DSV XPress portal |
 | XPress PAT | Personal Access Token |
 
+### K+N (Kuehne+Nagel)
+
+Go to **Inventory → Freight → Freight Carriers** and create or edit a K+N carrier:
+
+| Field | Value |
+|-------|-------|
+| Delivery Type | `K+N` |
+| Environment | `Sandbox` for testing, `Production` for live |
+| Quote Mode | `Manual` (enter quotes by hand) or `API` (when K+N quote API is available for your account) |
+| K+N Account Number | Your K+N account number |
+| API Key / Client ID / Client Secret | From K+N developer portal (auth method TBC on onboarding) |
+
+In sandbox mode the adapter returns hardcoded mock quotes and a canned tracking sequence. No API keys required.
+
+**Webhook:** `POST https://your-odoo.example.com/knplus/webhook/<carrier_id>`
+Auth method to be confirmed with K+N during onboarding (stub in place).
+
+### Mainfreight A&O (Air & Ocean)
+
+Go to **Inventory → Freight → Freight Carriers** and create or edit a Mainfreight carrier:
+
+| Field | Value |
+|-------|-------|
+| Delivery Type | `Mainfreight` |
+| Environment | `UAT` for testing, `Production` for live |
+| API Key | From Mainfreight developer portal |
+| Customer Code | Your Mainfreight customer code |
+| Default Warehouse Code | MF warehouse code (default: `AKL`) |
+
+Mainfreight A&O has **no quote or booking API** — bookings are managed manually via the Mainchain portal and the housebill number entered on the `freight.booking` record. Once entered, the adapter polls `/tracking/2.0/references/events` on each cron cycle.
+
+The existing 30-minute `cron_sync_tracking` in `mml_freight` picks up Mainfreight bookings automatically once this module is installed. A dedicated per-carrier cron is included but ships **inactive by default** — enable it only if you need a different polling interval, and disable the generic cron for Mainfreight to avoid duplicate API calls.
+
+**Webhook:** `POST https://your-odoo.example.com/mainfreight/webhook` (single endpoint — Mainfreight subscription is configured at portal level, not per-carrier).
+Auth method to be confirmed with Mainfreight during onboarding (stub in place).
+
 ### Webhook signing secret
 
 Each carrier needs a shared HMAC secret so DSV can sign webhook payloads. Generate one and paste it into **Webhook Signing Secret** on the carrier form:
@@ -128,8 +166,8 @@ Requires a full Odoo 19 test database with all dependencies installed:
 ```bash
 odoo-bin --test-enable --stop-after-init \
   -d freight_test \
-  -i mml_freight,mml_freight_dsv,mml_freight_demo \
-  --test-tags=mml_freight,mml_freight_dsv,mml_freight_demo
+  -i mml_freight,mml_freight_dsv,mml_freight_knplus,mml_freight_mainfreight,mml_freight_demo \
+  --test-tags=mml_freight,mml_freight_dsv,mml_freight_knplus,mml_freight_mainfreight,mml_freight_demo
 ```
 
 ### Test coverage
@@ -149,6 +187,10 @@ odoo-bin --test-enable --stop-after-init \
 | `test_dsv_mock_adapter.py` | Mock quote values, booking ref prefix, tracking events, live guard |
 | `test_cron_jobs.py` | Tracking cron, token refresh cron, cron XML records present |
 | `test_demo_install.py` | Demo carriers, partner, product dimensions, demo PO |
+| `test_kn_adapter.py` | K+N mock: manual mode (no quotes), API mode (canned quotes), booking ref, tracking events, registry resolution |
+| `test_kn_webhook.py` | K+N webhook deduplication (SHA-256), adapter dispatch |
+| `test_mf_tracking.py` | MF mock: no-op quote/booking, canned events, normalisation (event codes → states, flat list, unknown codes, missing datetime), reference resolution priority (housebill → container → master bill), graceful API errors |
+| `test_mf_webhook.py` | MF webhook: messageId dedup, 3PL message type ignored, departure event → tracking event, state advancement, idempotency, no backwards state, unknown housebill silently ignored, cancelled booking not updated |
 
 ---
 
@@ -157,17 +199,21 @@ odoo-bin --test-enable --stop-after-init \
 Install `mml_freight_demo` to get:
 
 - **DSV Road NZ** carrier — `dsv_generic`, `auto_tender=True`, environment=demo
-- **K+N Sea LCL Global** carrier — `knplus` stub, `auto_tender=False`
+- **K+N Sea LCL Global** carrier — `knplus`, environment=sandbox, `auto_tender=False`
 - **Enduro Pet Pty Ltd** — Australian supplier
 - 3 products with freight dimensions (Dog Food 20kg, Cat Food 5kg, Bird Seed 10kg)
 - **PO/DEMO/001** — FOB incoterm, cargo ready in 15 days, sea mode preference
 
-In demo mode DSV returns hardcoded mock quotes — no API keys required:
+In demo/sandbox mode adapters return hardcoded mock quotes — no API keys required:
 
-| Service | Mode | Rate (NZD) | Transit |
-|---------|------|-----------|---------|
-| DSV Road Standard | Road | $1,800 | 5 days |
-| DSV Air Express | Air | $6,200 | 2 days |
+| Service | Carrier | Mode | Rate (NZD) | Transit |
+|---------|---------|------|-----------|---------|
+| DSV Road Standard | DSV | Road | $1,800 | 5 days |
+| DSV Air Express | DSV | Air | $6,200 | 2 days |
+| K+N Sea LCL Standard | K+N | Sea LCL | $2,640 | 22 days |
+| K+N Air Standard | K+N | Air | $5,100 | 4 days |
+
+K+N mock quotes are only returned when **Quote Mode = API**. In `Manual` mode (default), K+N returns no quotes and the user enters the rate by hand.
 
 To go live: set the carrier's **Environment** to `Production` and fill in the API credentials.
 
@@ -275,5 +321,6 @@ class FlexportAdapter(FreightAdapterBase):
 | Phase 1.6 | **Complete** | Consolidated PO support: `freight.tender` and `freight.booking` migrated to `po_ids` Many2many; one inward order per PO; multi-receipt landed cost; ROQ interface contract defined |
 | Phase 2 | Planned | Live DSV Generic API (quote + booking), tracking sync, inward_order payload builder |
 | Phase 3 | Planned | Auto-tender from PO on confirm, selection algorithms, DSV webhooks |
-| Phase 4 | Planned | DSV labels/PODs, Mainfreight adapter, landed cost integration |
-| Phase 5 | Planned | K+N adapter, analytics dashboard, reliability scoring |
+| Phase 4 | Planned | DSV labels/PODs, landed cost integration |
+| Phase 4.5 | **Complete** | K+N adapter (`mml_freight_knplus`) — credential fields, mock/live delegation, sandbox quotes, webhook receiver; Mainfreight A&O adapter (`mml_freight_mainfreight`) — tracking-only, event normalisation, webhook receiver, inactive-by-default dedicated cron |
+| Phase 5 | Planned | Live K+N API (pending onboarding), live Mainfreight tracking (pending API key + event code list), analytics dashboard, reliability scoring |
