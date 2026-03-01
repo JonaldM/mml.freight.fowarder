@@ -1,3 +1,5 @@
+import psycopg2
+
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 import logging
@@ -235,6 +237,7 @@ class FreightTender(models.Model):
         self.ensure_one()
         if not self.selected_quote_id:
             raise UserError('Select a quote before booking.')
+        # Fast-fail: cheap hint only — ORM cache may be stale. The authoritative check is post-lock below.
         if self.state != 'selected':
             raise UserError('Tender must be in Selected state to book.')
         # Pessimistic lock — prevents double-click race that would call the DSV API twice
@@ -243,7 +246,7 @@ class FreightTender(models.Model):
             self.env.cr.execute(
                 'SELECT id FROM freight_tender WHERE id = %s FOR UPDATE NOWAIT', [self.id]
             )
-        except Exception:
+        except psycopg2.errors.LockNotAvailable:
             raise UserError(
                 'Another operation is in progress for this tender. Please try again.'
             )
