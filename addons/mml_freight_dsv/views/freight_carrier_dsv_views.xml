@@ -28,6 +28,12 @@
                     <field name="x_dsv_access_token" readonly="1" password="True"/>
                     <field name="x_dsv_token_expiry" readonly="1"/>
                 </group>
+                <group string="LCL/FCL Mode Thresholds (CBM)" name="dsv_lcl_fcl"
+                       invisible="delivery_type != 'dsv_generic'">
+                    <field name="x_dsv_lcl_fcl_threshold" string="LCL→FCL Grey Zone starts at"/>
+                    <field name="x_dsv_fcl20_fcl40_threshold" string="FCL20→FCL40 Grey Zone starts at"/>
+                    <field name="x_dsv_fcl40_upper" string="FCL40 only above"/>
+                </group>
             </xpath>
         </field>
     </record>

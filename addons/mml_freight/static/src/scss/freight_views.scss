@@ -1,0 +1,174 @@
+// =============================================================
+// MML Freight — Custom Kanban & View Styles
+// Aesthetic: Industrial maritime terminal — clean data density,
+//   phosphorescent accents on deep utility backgrounds.
+// =============================================================
+
+// -------------------------------------------------------------------
+// TYPOGRAPHY TOKENS
+// -------------------------------------------------------------------
+$font-mono: 'DM Mono', 'Roboto Mono', ui-monospace, monospace;
+
+// -------------------------------------------------------------------
+// MODE BADGE COLOURS
+// -------------------------------------------------------------------
+$mode-sea-lcl:   #0ea5e9;   // sky blue — LCL is lighter commitment
+$mode-sea-fcl:   #0369a1;   // deep ocean — full container
+$mode-air:       #f97316;   // orange — speed
+$mode-road:      #16a34a;   // green — ground
+$mode-rail:      #7c3aed;   // violet
+$mode-express:   #dc2626;   // red — urgency
+
+// -------------------------------------------------------------------
+// STATE COLOURS
+// -------------------------------------------------------------------
+$state-draft:        #6b7280;
+$state-confirmed:    #3b82f6;
+$state-cargo-ready:  #eab308;
+$state-picked-up:    #f97316;
+$state-in-transit:   #06b6d4;
+$state-arrived-port: #6366f1;
+$state-customs:      #f59e0b;
+$state-delivered:    #16a34a;
+$state-received:     #059669;
+$state-cancelled:    #9ca3af;
+$state-error:        #ef4444;
+
+// =============================================================
+// FREIGHT BOOKING — KANBAN BOARD
+// =============================================================
+.o_freight_booking_kanban {
+
+    // Column header labels — monospace, uppercase, tight tracking
+    .o_column_title {
+        font-family: $font-mono;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 600;
+        opacity: 0.75;
+    }
+
+    // Card chrome
+    .o_kanban_record {
+        border-radius: 7px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+        &:hover {
+            border-color: #93c5fd;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.10);
+        }
+    }
+
+    // Reference number — always monospace
+    .o_freight_card_ref {
+        font-family: $font-mono;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: #0f172a;
+    }
+
+    // Vessel / AWB inline
+    .o_freight_card_vessel,
+    .o_freight_card_awb {
+        font-family: $font-mono;
+        font-size: 0.78rem;
+    }
+
+    // Transport mode pills
+    .o_freight_mode_badge {
+        font-family: $font-mono;
+        font-size: 0.62rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+        white-space: nowrap;
+
+        &.o_mode_sea_lcl  { background: $mode-sea-lcl;  color: #fff; }
+        &.o_mode_sea_fcl  { background: $mode-sea-fcl;  color: #fff; }
+        &.o_mode_air      { background: $mode-air;      color: #fff; }
+        &.o_mode_road     { background: $mode-road;     color: #fff; }
+        &.o_mode_rail     { background: $mode-rail;     color: #fff; }
+        &.o_mode_express  { background: $mode-express;  color: #fff; }
+    }
+
+    // ETA call-out
+    .o_freight_card_eta {
+        .fa { color: #64748b; }
+        span { color: #1e3a5f; }
+    }
+
+    // Card footer separator
+    .o_freight_card_footer {
+        border-top-color: #f1f5f9 !important;
+    }
+
+    // State badges — rounded pill on card footer
+    .o_freight_state_draft         { background: $state-draft;         color: #fff; }
+    .o_freight_state_confirmed     { background: $state-confirmed;     color: #fff; }
+    .o_freight_state_cargo_ready   { background: $state-cargo-ready;   color: #1c1917; }
+    .o_freight_state_picked_up     { background: $state-picked-up;     color: #fff; }
+    .o_freight_state_in_transit    { background: $state-in-transit;    color: #fff; }
+    .o_freight_state_arrived_port  { background: $state-arrived-port;  color: #fff; }
+    .o_freight_state_customs       { background: $state-customs;       color: #1c1917; }
+    .o_freight_state_delivered     { background: $state-delivered;     color: #fff; }
+    .o_freight_state_received      { background: $state-received;      color: #fff; }
+    .o_freight_state_cancelled     { background: $state-cancelled;     color: #fff; opacity: 0.7; }
+    .o_freight_state_error         { background: $state-error;         color: #fff; }
+}
+
+// =============================================================
+// FREIGHT BOOKING — LIST VIEW (state-based row tinting)
+// =============================================================
+.o_list_view .o_freight_booking_list {
+    .o_list_record_selector { opacity: 0.6; }
+}
+
+// =============================================================
+// FREIGHT TENDER QUOTES — inline decision buttons
+// =============================================================
+.o_freight_quotes_list {
+
+    // Highlight the currently selected quote row
+    tr.o_freight_selected_row > td {
+        background-color: #f0fdf4 !important;
+        border-left: 3px solid $state-delivered;
+    }
+
+    // "Select" button — compact success styling
+    .o_freight_btn_select {
+        padding: 1px 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border-radius: 4px;
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #86efac;
+
+        &:hover { background: $state-delivered; color: #fff; border-color: $state-delivered; }
+    }
+
+    // "Decline" button — muted danger
+    .o_freight_btn_decline {
+        padding: 1px 8px;
+        font-size: 0.78rem;
+        border-radius: 4px;
+        background: #fff1f2;
+        color: #be123c;
+        border: 1px solid #fda4af;
+
+        &:hover { background: #be123c; color: #fff; border-color: #be123c; }
+    }
+}
+
+// =============================================================
+// PENDING QUOTATIONS — list view emphasis
+// =============================================================
+.o_freight_pending_list {
+    .o_list_number { font-family: $font-mono; }
+}

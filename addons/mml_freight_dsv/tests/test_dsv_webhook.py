@@ -51,7 +51,6 @@ class TestDsvWebhook(TransactionCase):
             {'eventType': 'DEPARTURE', 'eventDate': '2026-05-15T08:00:00Z'},
         ]}
         count_before = len(self.booking.tracking_event_ids)
-        import logging
         with self.assertLogs('odoo.addons.mml_freight.models.freight_booking', level='WARNING'):
             self._fire(body, carrier=other)
         self.assertEqual(

@@ -122,3 +122,27 @@ class FreightTenderQuote(models.Model):
                 )
             else:
                 q.cost_vs_cheapest_pct = 0.0
+
+    is_selected = fields.Boolean(
+        'Selected', compute='_compute_is_selected',
+        help='True if this quote is currently selected on the tender.',
+    )
+
+    @api.depends('tender_id.selected_quote_id')
+    def _compute_is_selected(self):
+        for q in self:
+            q.is_selected = q.tender_id.selected_quote_id.id == q.id
+
+    def action_select(self):
+        """Select this quote: write selected_quote_id on tender and advance to 'selected' state."""
+        self.ensure_one()
+        self.tender_id.write({
+            'selected_quote_id': self.id,
+            'state': 'selected',
+        })
+        return True
+
+    def action_decline(self):
+        """Mark this quote as declined — removes it from consideration."""
+        self.write({'state': 'declined'})
+        return True

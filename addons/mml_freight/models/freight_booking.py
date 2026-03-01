@@ -83,6 +83,19 @@ class FreightBooking(models.Model):
     feeder_voyage_number = fields.Char('Feeder Voyage No.')
     awb_number = fields.Char('AWB No.')
 
+    # Related origin/destination fields (denormalised from tender for list/kanban)
+    origin_country_id = fields.Many2one(
+        'res.country', related='tender_id.origin_country_id',
+        string='Origin Country', store=True, readonly=True,
+    )
+    dest_country_id = fields.Many2one(
+        'res.country', related='tender_id.dest_country_id',
+        string='Destination Country', store=True, readonly=True,
+    )
+    dest_port = fields.Char(
+        related='tender_id.dest_port', string='Dest. Port', store=True, readonly=True,
+    )
+
     tracking_event_ids = fields.One2many(
         'freight.tracking.event', 'booking_id', string='Tracking Events',
     )
@@ -332,7 +345,11 @@ class FreightBooking(models.Model):
             description = _sanitise(raw.get('description', ''))
 
             if event_dt is None:
-                continue  # skip events with unparseable dates
+                _logger.warning(
+                    'DSV webhook: unparseable eventDate %r for shipment %s event %r — skipped',
+                    raw_date_str, shipment_id, event_type,
+                )
+                continue
 
             exists = booking.tracking_event_ids.filtered(
                 lambda e, s=status, dt=event_dt: e.status == s and e.event_date == dt
@@ -344,7 +361,7 @@ class FreightBooking(models.Model):
                     'status':      status,
                     'location':    location,
                     'description': description,
-                    'raw_payload': '{}',   # never log body — may contain PII
+                    'raw_payload': 'redacted — PII',   # body never stored
                 })
 
             # Auto-advance state (never go backwards)

@@ -1,33 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
+    <!-- ===========================================================
+         FREIGHT TENDER — LIST VIEW
+    =========================================================== -->
     <record id="view_freight_tender_list" model="ir.ui.view">
         <field name="name">freight.tender.list</field>
         <field name="model">freight.tender</field>
         <field name="arch" type="xml">
-            <list string="Freight Tenders" decoration-info="state == 'draft'" decoration-success="state == 'booked'">
-                <field name="name"/>
-                <field name="purchase_order_id"/>
-                <field name="origin_partner_id"/>
-                <field name="incoterm_id"/>
-                <field name="chargeable_weight_kg"/>
-                <field name="state" widget="badge"/>
+            <list string="Freight Tenders"
+                  decoration-info="state == 'draft'"
+                  decoration-warning="state in ('quoted', 'partial')"
+                  decoration-success="state == 'booked'"
+                  decoration-muted="state == 'cancelled'">
+                <field name="name" string="Tender Ref." decoration-bf="1" class="font-monospace"/>
+                <field name="purchase_order_id" string="PO"/>
+                <field name="origin_partner_id" string="Supplier"/>
+                <field name="origin_country_id" string="From" optional="show"/>
+                <field name="dest_country_id" string="To" optional="show"/>
+                <field name="incoterm_id" optional="show"/>
+                <field name="total_cbm" string="CBM" optional="show"/>
+                <field name="chargeable_weight_kg" string="Charg. Wt (kg)" optional="show"/>
+                <field name="requested_pickup_date" string="Pickup" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state in ('quoted', 'partial')"
+                       decoration-success="state == 'booked'"
+                       decoration-danger="state == 'cancelled'"/>
             </list>
         </field>
     </record>
+
+    <!-- ===========================================================
+         FREIGHT TENDER — FORM VIEW
+         Quote tab has per-row Select / Decline buttons so the
+         freight team can make a decision inline without navigating
+         to a separate record.
+    =========================================================== -->
     <record id="view_freight_tender_form" model="ir.ui.view">
         <field name="name">freight.tender.form</field>
         <field name="model">freight.tender</field>
         <field name="arch" type="xml">
             <form string="Freight Tender">
                 <header>
-                    <button name="action_request_quotes" string="Request Quotes" type="object" class="btn-primary" invisible="state not in ('draft', 'partial')"/>
-                    <button name="action_auto_select" string="Auto-Select Best" type="object" invisible="state not in ('quoted', 'partial')"/>
-                    <button name="action_book" string="Book Selected" type="object" class="btn-primary" invisible="state != 'selected'"/>
-                    <button name="action_cancel" string="Cancel" type="object" invisible="state in ('booked', 'cancelled')"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,requesting,quoted,selected,booked"/>
+                    <button name="action_request_quotes" string="Request Quotes" type="object"
+                            class="btn-primary"
+                            invisible="state not in ('draft', 'partial')"/>
+                    <button name="action_auto_select" string="Auto-Select Best" type="object"
+                            invisible="state not in ('quoted', 'partial')"/>
+                    <button name="action_book" string="Book Selected" type="object"
+                            class="btn-primary"
+                            invisible="state != 'selected'"/>
+                    <button name="action_cancel" string="Cancel" type="object"
+                            invisible="state in ('booked', 'cancelled')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,requesting,quoted,selected,booked"/>
                 </header>
                 <sheet>
-                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
                     <group>
                         <group string="Shipment">
                             <field name="purchase_order_id"/>
@@ -61,7 +92,7 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Packages">
+                        <page string="Packages" name="packages">
                             <field name="package_line_ids">
                                 <list editable="bottom">
                                     <field name="product_id"/>
@@ -77,23 +108,53 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Quotes">
-                            <field name="quote_line_ids">
-                                <list decoration-success="is_cheapest == True" decoration-info="is_fastest == True" decoration-muted="state == 'error'">
-                                    <field name="carrier_id"/>
-                                    <field name="service_name"/>
-                                    <field name="transport_mode"/>
-                                    <field name="total_rate_nzd"/>
-                                    <field name="cost_vs_cheapest_pct" string="% vs Cheapest"/>
-                                    <field name="estimated_transit_days"/>
-                                    <field name="state" widget="badge"/>
-                                    <field name="is_cheapest" invisible="1"/>
-                                    <field name="is_fastest" invisible="1"/>
+
+                        <!-- ── Quotes tab: inline confirm / decline ── -->
+                        <page string="Quotes" name="quotes">
+                            <!-- Selected quote summary bar -->
+                            <group string="Decision" invisible="not selected_quote_id">
+                                <field name="selected_quote_id" readonly="1"/>
+                                <field name="selection_reason"/>
+                            </group>
+
+                            <field name="quote_line_ids"
+                                   class="o_freight_quotes_list"
+                                   widget="one2many"
+                                   nolabel="1">
+                                <list decoration-success="is_selected == True"
+                                      decoration-muted="state in ('declined', 'error', 'expired')"
+                                      decoration-warning="is_cheapest == True and not is_selected"
+                                      optional_columns_hidden="0">
+                                    <field name="carrier_id" string="Carrier"/>
+                                    <field name="service_name" string="Service"/>
+                                    <field name="transport_mode" widget="badge" optional="show"/>
+                                    <field name="total_rate_nzd" string="Rate (NZD)"
+                                           decoration-success="is_cheapest == True"/>
+                                    <field name="cost_vs_cheapest_pct" string="% vs Cheapest"
+                                           optional="show"/>
+                                    <field name="estimated_transit_days" string="Days"/>
+                                    <field name="estimated_delivery_date" string="Est. Delivery" optional="show"/>
+                                    <field name="carrier_quote_ref" string="Carrier Ref."
+                                           class="font-monospace" optional="hide"/>
+                                    <field name="state" widget="badge" optional="show"/>
+                                    <field name="is_cheapest" column_invisible="1"/>
+                                    <field name="is_fastest" column_invisible="1"/>
+                                    <field name="is_selected" column_invisible="1"/>
+                                    <!-- Inline decision buttons -->
+                                    <button name="action_select"
+                                            string="Select ✓"
+                                            type="object"
+                                            class="o_freight_btn_select btn btn-sm"
+                                            invisible="is_selected or state in ('declined','error','expired') or parent.state == 'booked'"/>
+                                    <button name="action_decline"
+                                            string="Decline"
+                                            type="object"
+                                            class="o_freight_btn_decline btn btn-sm"
+                                            invisible="state in ('declined','error','expired') or parent.state == 'booked'"/>
                                 </list>
                             </field>
+
                             <group>
-                                <field name="selected_quote_id"/>
-                                <field name="selection_reason"/>
                                 <field name="cheapest_quote_id" readonly="1"/>
                             </group>
                         </page>
@@ -103,9 +164,49 @@
             </form>
         </field>
     </record>
+
+    <!-- ── Pending Quotations: tenders in quoted/partial state awaiting a decision ── -->
+    <record id="view_pending_quotations_list" model="ir.ui.view">
+        <field name="name">freight.tender.pending.list</field>
+        <field name="model">freight.tender</field>
+        <field name="arch" type="xml">
+            <list string="Pending Quotations"
+                  decoration-warning="state in ('quoted', 'partial')"
+                  class="o_freight_pending_list">
+                <field name="name" string="Tender" decoration-bf="1" class="font-monospace"/>
+                <field name="purchase_order_id" string="PO"/>
+                <field name="origin_country_id" string="From"/>
+                <field name="dest_country_id" string="To"/>
+                <field name="total_cbm" string="CBM"/>
+                <field name="cheapest_quote_id" string="Cheapest Quote"/>
+                <field name="state" widget="badge" decoration-warning="state in ('quoted','partial')"/>
+                <button name="action_auto_select" string="Auto-Select Best"
+                        type="object" class="btn-sm btn-warning"
+                        invisible="state not in ('quoted', 'partial')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_pending_quotations" model="ir.actions.act_window">
+        <field name="name">Pending Quotations</field>
+        <field name="res_model">freight.tender</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', 'in', ['quoted', 'partial', 'requesting'])]</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_pending_quotations_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_freight_tender_form')}),
+        ]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No quotations awaiting a decision.</p>
+            <p>Quotations appear here when quotes have been received on a freight tender.
+               Select the best quote or use Auto-Select.</p>
+        </field>
+    </record>
+
     <record id="action_freight_tender" model="ir.actions.act_window">
         <field name="name">Freight Tenders</field>
         <field name="res_model">freight.tender</field>
         <field name="view_mode">list,form</field>
     </record>
+
 </odoo>

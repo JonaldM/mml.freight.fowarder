@@ -23,6 +23,11 @@
         'views/purchase_order_views.xml',
         'views/menu.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'mml_freight/static/src/scss/freight_views.scss',
+        ],
+    },
     'installable': True,
     'auto_install': False,
     'application': False,

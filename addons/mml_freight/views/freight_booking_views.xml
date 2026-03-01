@@ -1,45 +1,231 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
+    <!-- ===========================================================
+         FREIGHT BOOKING — LIST VIEW
+         Carrier-agnostic: shows mode, shipment IDs, ETA, route,
+         state. Columns are togglable so ops can customise density.
+    =========================================================== -->
     <record id="view_freight_booking_list" model="ir.ui.view">
         <field name="name">freight.booking.list</field>
         <field name="model">freight.booking</field>
         <field name="arch" type="xml">
-            <list string="Freight Bookings" decoration-success="state == 'delivered'" decoration-warning="state == 'in_transit'">
-                <field name="name"/>
-                <field name="carrier_id"/>
-                <field name="purchase_order_id"/>
-                <field name="carrier_booking_id"/>
-                <field name="transport_mode"/>
-                <field name="booked_rate"/>
-                <field name="currency_id" invisible="1"/>
-                <field name="eta"/>
-                <field name="current_status"/>
-                <field name="state" widget="badge"/>
+            <list string="Freight Bookings"
+                  decoration-success="state in ('delivered', 'received')"
+                  decoration-warning="state in ('in_transit', 'picked_up', 'cargo_ready')"
+                  decoration-info="state in ('confirmed', 'arrived_port', 'customs')"
+                  decoration-muted="state in ('cancelled', 'error')">
+                <field name="name" string="Ref." decoration-bf="1" class="font-monospace"/>
+                <field name="transport_mode" widget="badge" optional="show"/>
+                <field name="carrier_id" string="Carrier" optional="show"/>
+                <field name="carrier_booking_id" string="Carrier Ref." class="font-monospace" optional="show"/>
+                <field name="carrier_shipment_id" string="Shipment ID" class="font-monospace" optional="show"/>
+                <field name="origin_country_id" string="From" optional="show"/>
+                <field name="dest_country_id" string="To" optional="show"/>
+                <field name="dest_port" string="Dest. Port" optional="hide"/>
+                <field name="vessel_name" string="Vessel" optional="hide" class="font-monospace"/>
+                <field name="container_number" string="Container" optional="hide" class="font-monospace"/>
+                <field name="awb_number" string="AWB" optional="hide" class="font-monospace"/>
+                <field name="purchase_order_id" string="PO" optional="show"/>
+                <field name="eta" string="ETA" optional="show"/>
+                <field name="actual_delivery_date" string="Delivered" optional="hide"/>
+                <field name="current_status" string="Last Status" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-success="state in ('delivered', 'received')"
+                       decoration-warning="state == 'in_transit'"
+                       decoration-info="state in ('confirmed', 'cargo_ready')"
+                       decoration-danger="state in ('error', 'cancelled')"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="booked_rate" optional="hide"/>
             </list>
         </field>
     </record>
+
+    <!-- ===========================================================
+         FREIGHT BOOKING — KANBAN VIEW
+         Pipeline grouped by state. Cards show: reference, mode
+         badge with icon, carrier, vessel/AWB, PO, ETA, route flag.
+    =========================================================== -->
+    <record id="view_freight_booking_kanban" model="ir.ui.view">
+        <field name="name">freight.booking.kanban</field>
+        <field name="model">freight.booking</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state"
+                    class="o_freight_booking_kanban"
+                    records_draggable="false"
+                    quick_create="false">
+                <field name="name"/>
+                <field name="state"/>
+                <field name="transport_mode"/>
+                <field name="carrier_id"/>
+                <field name="carrier_booking_id"/>
+                <field name="carrier_shipment_id"/>
+                <field name="eta"/>
+                <field name="current_status"/>
+                <field name="vessel_name"/>
+                <field name="container_number"/>
+                <field name="awb_number"/>
+                <field name="purchase_order_id"/>
+                <field name="origin_country_id"/>
+                <field name="dest_country_id"/>
+                <field name="dest_port"/>
+                <field name="currency_id"/>
+                <field name="booked_rate"/>
+                <templates>
+                    <t t-name="card" class="o_freight_card p-3 d-flex flex-column gap-1">
+
+                        <!-- ── Row 1: Ref + Transport Mode badge ── -->
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="o_freight_card_ref">
+                                <t t-esc="record.name.value"/>
+                            </span>
+                            <t t-if="record.transport_mode.raw_value">
+                                <span t-attf-class="badge o_freight_mode_badge o_mode_#{record.transport_mode.raw_value}">
+                                    <t t-if="record.transport_mode.raw_value in ['sea_lcl','sea_fcl']">
+                                        <i class="fa fa-ship"/>&#160;
+                                    </t>
+                                    <t t-elif="record.transport_mode.raw_value == 'air'">
+                                        <i class="fa fa-plane"/>&#160;
+                                    </t>
+                                    <t t-elif="record.transport_mode.raw_value == 'road'">
+                                        <i class="fa fa-truck"/>&#160;
+                                    </t>
+                                    <t t-elif="record.transport_mode.raw_value == 'rail'">
+                                        <i class="fa fa-subway"/>&#160;
+                                    </t>
+                                    <t t-else="">
+                                        <i class="fa fa-bolt"/>&#160;
+                                    </t>
+                                    <t t-esc="record.transport_mode.value"/>
+                                </span>
+                            </t>
+                        </div>
+
+                        <!-- ── Row 2: Carrier + booking ref ── -->
+                        <div class="small text-muted">
+                            <i class="fa fa-building-o me-1"/>
+                            <t t-esc="record.carrier_id.value"/>
+                            <t t-if="record.carrier_booking_id.value">
+                                <span class="font-monospace text-secondary ms-1">
+                                    &#183;&#160;<t t-esc="record.carrier_booking_id.value"/>
+                                </span>
+                            </t>
+                        </div>
+
+                        <!-- ── Row 3: Origin → Destination ── -->
+                        <t t-if="record.origin_country_id.value or record.dest_country_id.value">
+                            <div class="small fw-semibold">
+                                <t t-esc="record.origin_country_id.value or '?'"/>
+                                <span class="text-muted mx-1">→</span>
+                                <t t-esc="record.dest_country_id.value or '?'"/>
+                                <t t-if="record.dest_port.value">
+                                    <span class="text-muted fw-normal ms-1">
+                                        (<t t-esc="record.dest_port.value"/>)
+                                    </span>
+                                </t>
+                            </div>
+                        </t>
+
+                        <!-- ── Row 4: Vessel / Container or AWB ── -->
+                        <t t-if="record.vessel_name.value">
+                            <div class="o_freight_card_vessel small text-muted">
+                                <i class="fa fa-anchor me-1"/>
+                                <t t-esc="record.vessel_name.value"/>
+                                <t t-if="record.container_number.value">
+                                    <span class="ms-1">/ <t t-esc="record.container_number.value"/></span>
+                                </t>
+                            </div>
+                        </t>
+                        <t t-elif="record.awb_number.value">
+                            <div class="o_freight_card_awb small text-muted">
+                                <i class="fa fa-barcode me-1"/>
+                                <t t-esc="record.awb_number.value"/>
+                            </div>
+                        </t>
+
+                        <!-- ── Row 5: PO reference ── -->
+                        <t t-if="record.purchase_order_id.value">
+                            <div class="small text-muted">
+                                <i class="fa fa-file-text-o me-1"/>
+                                <t t-esc="record.purchase_order_id.value"/>
+                            </div>
+                        </t>
+
+                        <!-- ── Row 6: ETA (if set) ── -->
+                        <t t-if="record.eta.value">
+                            <div class="o_freight_card_eta d-flex align-items-center gap-1">
+                                <i class="fa fa-calendar-check-o text-muted"/>
+                                <span class="small fw-semibold">ETA&#160;<t t-esc="record.eta.value"/></span>
+                            </div>
+                        </t>
+
+                        <!-- ── Footer: last status + state pill ── -->
+                        <div class="o_freight_card_footer mt-auto d-flex justify-content-between align-items-center pt-2 border-top">
+                            <small class="text-muted text-truncate me-2" style="max-width:55%;">
+                                <t t-esc="record.current_status.value"/>
+                            </small>
+                            <span t-attf-class="badge rounded-pill o_freight_state_#{record.state.raw_value}">
+                                <t t-esc="record.state.value"/>
+                            </span>
+                        </div>
+
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ===========================================================
+         FREIGHT BOOKING — FORM VIEW
+         Carrier-agnostic form. DSV-specific "Confirm with DSV"
+         button is visible only when state=draft AND carrier_booking_id
+         is set (i.e. DSV draft booking was created).
+         Generic "Confirm" shown when carrier_booking_id is absent
+         (manual/other carrier path).
+    =========================================================== -->
     <record id="view_freight_booking_form" model="ir.ui.view">
         <field name="name">freight.booking.form</field>
         <field name="model">freight.booking</field>
         <field name="arch" type="xml">
             <form string="Freight Booking">
                 <header>
-                    <button name="action_cancel" string="Cancel" type="object" invisible="state in ('delivered','received','cancelled')"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,picked_up,in_transit,arrived_port,delivered,received"/>
+                    <!-- Two-step DSV confirm: present after create_booking() populates carrier_booking_id -->
+                    <button name="action_confirm_with_dsv"
+                            string="Confirm with DSV"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'draft' or not carrier_booking_id"/>
+                    <!-- Generic confirm for non-API carriers -->
+                    <button name="action_confirm"
+                            string="Confirm"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'draft' or carrier_booking_id"/>
+                    <button name="action_cancel"
+                            string="Cancel"
+                            type="object"
+                            invisible="state in ('delivered', 'received', 'cancelled')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,confirmed,picked_up,in_transit,arrived_port,delivered,received"/>
                 </header>
                 <sheet>
-                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
                     <group>
                         <group string="Booking">
                             <field name="carrier_id"/>
                             <field name="purchase_order_id"/>
                             <field name="tender_id"/>
                             <field name="carrier_booking_id"/>
+                            <field name="carrier_shipment_id"/>
                             <field name="carrier_tracking_url" widget="url"/>
                         </group>
                         <group string="Tracking">
                             <field name="current_status"/>
                             <field name="eta"/>
+                            <field name="actual_pickup_date"/>
+                            <field name="actual_delivery_date"/>
                             <field name="tpl_message_id" readonly="1"/>
                         </group>
                     </group>
@@ -47,26 +233,47 @@
                         <group string="Transport">
                             <field name="transport_mode"/>
                             <field name="vessel_name"/>
+                            <field name="voyage_number"/>
+                            <field name="feeder_vessel_name"/>
+                            <field name="feeder_voyage_number"/>
                             <field name="container_number"/>
                             <field name="bill_of_lading"/>
                             <field name="awb_number"/>
                         </group>
+                        <group string="Route">
+                            <field name="origin_country_id" readonly="1"/>
+                            <field name="dest_country_id" readonly="1"/>
+                            <field name="dest_port" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
                         <group string="Financials">
+                            <field name="currency_id" invisible="1"/>
                             <field name="booked_rate"/>
                             <field name="actual_rate"/>
-                            <field name="currency_id" invisible="1"/>
                             <field name="invoice_id"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="Tracking Events">
+                        <page string="Tracking Events" name="tracking">
                             <field name="tracking_event_ids" readonly="1">
-                                <list><field name="event_date"/><field name="status"/><field name="location"/><field name="description"/></list>
+                                <list decoration-success="status == 'delivered'"
+                                      decoration-warning="status in ('in_transit', 'picked_up')"
+                                      decoration-info="status in ('confirmed', 'arrived_port', 'customs')">
+                                    <field name="event_date"/>
+                                    <field name="status" widget="badge"/>
+                                    <field name="location"/>
+                                    <field name="description"/>
+                                </list>
                             </field>
                         </page>
-                        <page string="Documents">
+                        <page string="Documents" name="documents">
                             <field name="document_ids">
-                                <list><field name="doc_type"/><field name="attachment_id"/><field name="carrier_doc_ref"/></list>
+                                <list>
+                                    <field name="doc_type"/>
+                                    <field name="attachment_id"/>
+                                    <field name="carrier_doc_ref"/>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -75,9 +282,32 @@
             </form>
         </field>
     </record>
-    <record id="action_freight_booking" model="ir.actions.act_window">
-        <field name="name">Freight Bookings</field>
+
+    <!-- ── Actions ── -->
+
+    <!-- Active shipments pipeline (default view for ops team) -->
+    <record id="action_freight_booking_active" model="ir.actions.act_window">
+        <field name="name">Active Shipments</field>
         <field name="res_model">freight.booking</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('state', 'not in', ['cancelled', 'received', 'delivered', 'error'])]</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_freight_booking_kanban')}),
+            (0, 0, {'view_mode': 'list',   'view_id': ref('view_freight_booking_list')}),
+            (0, 0, {'view_mode': 'form',   'view_id': ref('view_freight_booking_form')}),
+        ]"/>
     </record>
+
+    <!-- Full archive — all bookings -->
+    <record id="action_freight_booking" model="ir.actions.act_window">
+        <field name="name">All Freight Bookings</field>
+        <field name="res_model">freight.booking</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list',   'view_id': ref('view_freight_booking_list')}),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_freight_booking_kanban')}),
+            (0, 0, {'view_mode': 'form',   'view_id': ref('view_freight_booking_form')}),
+        ]"/>
+    </record>
+
 </odoo>
