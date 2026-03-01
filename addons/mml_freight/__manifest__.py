@@ -11,6 +11,7 @@
         'account',
         'purchase',
         'delivery',
+        'stock_account',
         'stock_3pl_core',
     ],
     'data': [

@@ -222,6 +222,11 @@
                             type="object"
                             class="btn-secondary"
                             invisible="not carrier_shipment_id or state in ('cancelled',)"/>
+                    <button name="action_create_landed_cost"
+                            string="Create Landed Cost"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="not actual_rate or landed_cost_id or state in ('cancelled',)"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,confirmed,picked_up,in_transit,arrived_port,delivered,received"/>
                 </header>
@@ -271,6 +276,7 @@
                             <field name="booked_rate"/>
                             <field name="actual_rate"/>
                             <field name="invoice_id"/>
+                            <field name="landed_cost_id" readonly="1"/>
                         </group>
                     </group>
                     <notebook>

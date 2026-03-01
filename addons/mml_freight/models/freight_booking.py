@@ -70,6 +70,9 @@ class FreightBooking(models.Model):
     booked_rate = fields.Monetary('Booked Rate', currency_field='currency_id')
     actual_rate = fields.Monetary('Actual Rate', currency_field='currency_id')
     invoice_id = fields.Many2one('account.move', string='Freight Invoice', ondelete='set null')
+    landed_cost_id = fields.Many2one(
+        'stock.landed.cost', string='Landed Cost', ondelete='set null', readonly=True,
+    )
 
     current_status = fields.Char(
         'Current Status', compute='_compute_current_status', store=True,
@@ -331,6 +334,88 @@ class FreightBooking(models.Model):
             )
         )
         return True
+
+    def _get_freight_cost_product(self):
+        """Return the configured freight cost product for landed cost creation."""
+        param = self.env['ir.config_parameter'].sudo().get_param(
+            'mml_freight.freight_cost_product_id'
+        )
+        if param:
+            try:
+                product = self.env['product.product'].browse(int(param))
+                if product.exists():
+                    return product
+            except (ValueError, TypeError):
+                pass
+        return self.env['product.product'].search(
+            [('name', '=', 'Freight Cost'), ('type', '=', 'service')], limit=1,
+        )
+
+    def action_create_landed_cost(self):
+        """Create a stock.landed.cost from this booking's actual_rate and open it."""
+        self.ensure_one()
+        if not self.actual_rate:
+            raise UserError(
+                'Set the actual freight rate (Fetch Invoice or enter manually) '
+                'before creating a landed cost.'
+            )
+        if self.landed_cost_id:
+            raise UserError(
+                'A landed cost already exists for this booking (%s). '
+                'Open it from the Financials group.' % self.landed_cost_id.name
+            )
+        if 'stock.landed.cost' not in self.env:
+            raise UserError(
+                'stock.landed.cost model not available. '
+                'Ensure the stock_account (or stock_landed_costs) module is installed.'
+            )
+        po = self.purchase_order_id
+        if not po:
+            raise UserError('No purchase order linked to this booking.')
+        receipt = po.picking_ids.filtered(
+            lambda p: p.state == 'done' and p.picking_type_code == 'incoming'
+        )
+        if not receipt:
+            raise UserError(
+                'No validated receipt found for %s. '
+                'Receive the goods before creating a landed cost.' % po.name
+            )
+        freight_product = self._get_freight_cost_product()
+        if not freight_product:
+            raise UserError(
+                'No freight cost product configured. '
+                'Set system parameter mml_freight.freight_cost_product_id, '
+                'or create a service product named "Freight Cost".'
+            )
+        account = (
+            freight_product.categ_id.property_account_expense_categ_id
+            if freight_product.categ_id else False
+        )
+        landed_cost = self.env['stock.landed.cost'].create({
+            'picking_ids':  [(4, receipt[0].id)],
+            'vendor_bill_id': self.invoice_id.id if self.invoice_id else False,
+            'cost_lines': [(0, 0, {
+                'product_id':   freight_product.id,
+                'name':         f'Freight — {self.name}',
+                'price_unit':   self.actual_rate,
+                'split_method': 'by_weight',
+                'account_id':   account.id if account else False,
+            })],
+        })
+        self.landed_cost_id = landed_cost
+        self.message_post(
+            body=(
+                f'Landed cost created: {landed_cost.name} '
+                f'({self.actual_rate:.2f} {self.currency_id.name}). '
+                f'Validate the landed cost to apply freight to product valuations.'
+            )
+        )
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'stock.landed.cost',
+            'res_id': landed_cost.id,
+            'view_mode': 'form',
+        }
 
     def _queue_3pl_inward_order(self):
         """Queue an inward order notice via stock_3pl_core message queue.
