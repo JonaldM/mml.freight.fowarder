@@ -110,26 +110,33 @@ class PurchaseOrder(models.Model):
     def _populate_tender_packages(self, tender):
         """Create freight.tender.package lines from PO order lines."""
         warned = []
+        fractional = []
+        vals_list = []
         for line in self.order_line:
             tmpl = line.product_id.product_tmpl_id
             weight = (tmpl.x_freight_weight if tmpl else 0.0) or 0.0
             length = (tmpl.x_freight_length if tmpl else 0.0) or 0.0
             width  = (tmpl.x_freight_width  if tmpl else 0.0) or 0.0
             height = (tmpl.x_freight_height if tmpl else 0.0) or 0.0
+            qty = line.product_qty
+            if qty != round(qty):
+                fractional.append(f'{line.product_id.name or "Unknown"} ({qty} → {round(qty)})')
             if not (weight and length and width and height):
                 warned.append(line.product_id.name or 'Unknown')
-            self.env['freight.tender.package'].create({
+            vals_list.append({
                 'tender_id':    tender.id,
                 'product_id':   line.product_id.id,
                 'description':  line.product_id.name or '',
-                'quantity':     round(line.product_qty),
+                'quantity':     round(qty),
                 'weight_kg':    weight,
                 'length_cm':    length,
                 'width_cm':     width,
                 'height_cm':    height,
                 'is_dangerous': tmpl.x_dangerous_goods if tmpl else False,
-                'hs_code':      getattr(line.product_id, 'hs_code', '') or '',
+                'hs_code':      getattr(line.product_id, 'hs_code', '') or '',  # may come from mml_edi
             })
+        if vals_list:
+            self.env['freight.tender.package'].create(vals_list)
         if warned:
             tender.message_post(
                 body=(
@@ -137,10 +144,22 @@ class PurchaseOrder(models.Model):
                     f'please update before requesting quotes: {", ".join(warned)}'
                 )
             )
+        if fractional:
+            tender.message_post(
+                body=(
+                    f'Product(s) with fractional quantities rounded to integers for freight packages: '
+                    f'{", ".join(fractional)}. Verify package counts are correct.'
+                )
+            )
 
     def action_request_freight_tender(self):
         """Open a new freight tender linked to this PO."""
         self.ensure_one()
+        if self.freight_tender_id:
+            raise UserError(
+                'A freight tender already exists for this order (%s). '
+                'Archive it before creating a new one.' % self.freight_tender_id.name
+            )
         tender = self.env['freight.tender'].create({
             'purchase_order_id': self.id,
             'company_id': self.company_id.id,
@@ -205,14 +224,27 @@ class PurchaseOrder(models.Model):
         if tender:
             try:
                 tender.action_request_quotes()
+            except UserError as e:
+                _logger.warning(
+                    'Auto-tender PO %s: no eligible carriers — %s', self.name, e,
+                )
+                self.message_post(
+                    body=(
+                        f'Freight tender created but no eligible carriers are configured: {e}. '
+                        f'Please set up freight carriers with Auto-Tender enabled and request quotes manually.'
+                    ),
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
             except Exception as e:
                 _logger.error(
-                    'Auto-tender quote fanout failed for PO %s: %s', self.name, e, exc_info=True,
+                    'Auto-tender PO %s: quote fanout failed — %s', self.name, e,
+                    exc_info=True,
                 )
                 self.message_post(
                     body=(
                         f'Freight tender created but quote requests failed: {e}. '
-                        f'Please request quotes manually from the tender.'
+                        f'The tender has been created — please request quotes manually from the Freight tab.'
                     ),
                     message_type='comment',
                     subtype_xmlid='mail.mt_note',
