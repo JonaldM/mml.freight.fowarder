@@ -147,6 +147,7 @@ class TestDsvGenericAdapter(TransactionCase):
         self.assertEqual(result['carrier_booking_id'], 'DSVBK001')
         self.assertEqual(result['carrier_shipment_id'], 'DSVSH001')
         self.assertTrue(result['requires_manual_confirmation'])
+        self.assertIn('carrier_tracking_url', result)
 
     def test_create_booking_422_raises_user_error(self):
         from odoo.exceptions import UserError

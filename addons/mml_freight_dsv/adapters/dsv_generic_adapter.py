@@ -116,7 +116,10 @@ class DsvGenericAdapter(FreightAdapterBase):
         """Create DSV draft booking (autobook=False). Raises UserError on any API failure."""
         from odoo.exceptions import UserError
         from odoo.addons.mml_freight_dsv.adapters.dsv_booking_builder import build_booking_payload
-        token   = get_token(self.carrier)
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            raise UserError(f'DSV auth failed: {e}') from e
         payload = build_booking_payload(tender, selected_quote, self.carrier)
         try:
             resp = self._post_with_retry(DSV_BOOKING_URL, payload, token)
@@ -143,8 +146,12 @@ class DsvGenericAdapter(FreightAdapterBase):
         bk_id = booking.carrier_booking_id
         if not bk_id:
             return
-        token = get_token(self.carrier)
-        url   = f'{DSV_BOOKING_URL}/{bk_id}'
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            _logger.warning('DSV cancel booking %s: auth error, skipping cancel: %s', bk_id, e)
+            return
+        url = f'{DSV_BOOKING_URL}/{bk_id}'
         try:
             resp = requests.delete(url, headers=self._headers(token), timeout=30)
         except Exception as e:
