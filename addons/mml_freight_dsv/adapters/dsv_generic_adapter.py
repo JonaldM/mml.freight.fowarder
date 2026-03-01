@@ -258,7 +258,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         headers = self._headers(token)
         headers['Accept'] = 'application/pdf'
         try:
-            resp = requests.get(url, headers=headers, timeout=30)
+            resp = requests.get(url, params={'printFormat': 'Portrait1Label'}, headers=headers, timeout=30)
         except Exception as e:
             _logger.warning('DSV label GET failed for %s: %s', booking.name, e, exc_info=True)
             return None

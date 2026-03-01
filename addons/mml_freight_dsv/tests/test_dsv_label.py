@@ -45,14 +45,17 @@ class TestDsvLabel(TransactionCase):
         return DsvGenericAdapter(self.carrier, self.env)
 
     def test_get_label_returns_bytes_on_200(self):
-        """HTTP 200 → get_label returns the response content bytes."""
-        pdf_bytes = b'%PDF-1.4-real-label-content'
-        mock_resp = _resp(status=200, content=pdf_bytes)
-        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token',
-                   return_value='tok'), \
-             patch('requests.get', return_value=mock_resp):
-            result = self._adapter().get_label(self.booking)
-        self.assertEqual(result, pdf_bytes)
+        from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import DsvGenericAdapter
+        adapter = DsvGenericAdapter(self.carrier, self.env)
+        fake_pdf = b'%PDF-1.4 label bytes'
+        mock_resp = MagicMock(ok=True, content=fake_pdf, status_code=200)
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token', return_value='tok'), \
+             patch('requests.get', return_value=mock_resp) as mock_get:
+            result = adapter.get_label(self.booking)
+        self.assertEqual(result, fake_pdf)
+        call_kwargs = mock_get.call_args
+        self.assertIn('printFormat=Portrait1Label', str(call_kwargs),
+                      'get_label must pass printFormat=Portrait1Label as a query param')
 
     def test_get_label_returns_none_on_404(self):
         """HTTP 404 → get_label returns None (not an error)."""
