@@ -9,9 +9,6 @@ def get_product_types(carrier, total_cbm, mode_preference):
     """
     if mode_preference == 'air':
         return ['AIR_EXPRESS']
-    if mode_preference == 'road':
-        return ['ROAD']
-
     # Sea or any: use CBM thresholds
     lcl_max   = getattr(carrier, 'x_dsv_lcl_fcl_threshold',      15.0) or 15.0
     fcl20_max = getattr(carrier, 'x_dsv_fcl20_fcl40_threshold',   25.0) or 25.0
@@ -33,13 +30,13 @@ def build_quote_payload(tender, product_type, mdm_number):
     dest   = tender.dest_partner_id
     return {
         'from': {
-            'country':      origin.country_id.code if origin.country_id else '',
+            'country':      tender.origin_country_id.code if tender.origin_country_id else '',
             'city':         origin.city  or '',
             'zipCode':      origin.zip   or '',
             'addressLine1': origin.street or '',
         },
         'to': {
-            'country':      dest.country_id.code if dest.country_id else '',
+            'country':      tender.dest_country_id.code if tender.dest_country_id else '',
             'city':         dest.city  or '',
             'zipCode':      dest.zip   or '',
             'addressLine1': dest.street or '',
