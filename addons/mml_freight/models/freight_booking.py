@@ -99,7 +99,47 @@ class FreightBooking(models.Model):
         self._queue_3pl_inward_order()
         return True
 
+    def action_confirm_with_dsv(self):
+        """Confirm booking with DSV API, update vessel/ETA fields, queue 3PL inward order."""
+        self.ensure_one()
+        from odoo.exceptions import UserError
+        registry = self.env['freight.adapter.registry']
+        adapter  = registry.get_adapter(self.carrier_id)
+        if not adapter or not hasattr(adapter, 'confirm_booking'):
+            raise UserError('No adapter with confirm_booking() for this carrier.')
+
+        result = adapter.confirm_booking(self)   # raises UserError on failure
+
+        # Parse ISO-8601 ETA string to datetime
+        eta = False
+        if result.get('eta'):
+            try:
+                import dateutil.parser
+                eta = dateutil.parser.parse(result['eta']).replace(tzinfo=None)
+            except Exception:
+                pass
+
+        self.write({
+            'state':                'confirmed',
+            'carrier_shipment_id':  result.get('carrier_shipment_id') or self.carrier_shipment_id,
+            'vessel_name':          result.get('vessel_name', ''),
+            'voyage_number':        result.get('voyage_number', ''),
+            'container_number':     result.get('container_number', ''),
+            'bill_of_lading':       result.get('bill_of_lading', ''),
+            'feeder_vessel_name':   result.get('feeder_vessel_name', ''),
+            'feeder_voyage_number': result.get('feeder_voyage_number', ''),
+            'eta':                  eta,
+        })
+        self._queue_3pl_inward_order()
+        self._build_inward_order_payload()
+        self.message_post(body='Booking confirmed with DSV. Inward order notice queued to Mainfreight.')
+        return True
+
     def action_cancel(self):
+        registry = self.env['freight.adapter.registry']
+        adapter  = registry.get_adapter(self.carrier_id)
+        if adapter and self.carrier_booking_id:
+            adapter.cancel_booking(self)
         self.write({'state': 'cancelled'})
         return True
 
@@ -152,6 +192,10 @@ class FreightBooking(models.Model):
             'freight.booking %s: queued 3pl.message %s for PO %s via connector %s',
             self.name, msg.id, po.name, connector.name,
         )
+
+    def _build_inward_order_payload(self):
+        """Populate tpl_message_id.payload_xml and advance to queued. Implemented in Task 15."""
+        pass
 
     def _resolve_3pl_connector(self, warehouse, po):
         """Return the best-matching active 3pl.connector for the given warehouse and PO.

@@ -82,3 +82,86 @@ class TestDsvConfirmBookingAdapter(TransactionCase):
                 result = self._adapter().confirm_booking(self.booking)
         self.assertEqual(result['feeder_vessel_name'], 'Feeder A')
         self.assertEqual(result['feeder_voyage_number'], 'FV01')
+
+
+class TestBookingConfirmWithDsv(TransactionCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.service_product = cls.env['product.product'].create({
+            'name': 'DSV Confirm Odoo Service',
+            'type': 'service',
+        })
+        cls.carrier = cls.env['delivery.carrier'].create({
+            'name': 'DSV Confirm Odoo',
+            'product_id': cls.service_product.id,
+            'delivery_type': 'dsv_generic',
+            'x_dsv_environment': 'production',
+        })
+        partner = cls.env['res.partner'].create({'name': 'BK Supplier'})
+        cls.po = cls.env['purchase.order'].create({'partner_id': partner.id})
+        cls.booking = cls.env['freight.booking'].create({
+            'carrier_id':         cls.carrier.id,
+            'currency_id':        cls.env.company.currency_id.id,
+            'carrier_booking_id': 'DSVBK_CONF',
+            'purchase_order_id':  cls.po.id,
+            'state':              'draft',
+        })
+
+    def _mock_confirm(self, result=None):
+        from unittest.mock import MagicMock
+        m = MagicMock()
+        m.confirm_booking.return_value = result or {
+            'carrier_shipment_id':  'SH99',
+            'vessel_name':          'Ever Given',
+            'voyage_number':        'VOY99',
+            'container_number':     'CONT99',
+            'bill_of_lading':       '',
+            'feeder_vessel_name':   '',
+            'feeder_voyage_number': '',
+            'eta':                  '2026-07-01T00:00:00Z',
+        }
+        return m
+
+    def test_action_confirm_with_dsv_state_becomes_confirmed(self):
+        from unittest.mock import patch
+        with patch.object(
+            type(self.env['freight.adapter.registry']), 'get_adapter',
+            return_value=self._mock_confirm(),
+        ):
+            self.booking.action_confirm_with_dsv()
+        self.assertEqual(self.booking.state, 'confirmed')
+
+    def test_action_confirm_with_dsv_stores_vessel(self):
+        from unittest.mock import patch
+        with patch.object(
+            type(self.env['freight.adapter.registry']), 'get_adapter',
+            return_value=self._mock_confirm(),
+        ):
+            self.booking.action_confirm_with_dsv()
+        self.assertEqual(self.booking.vessel_name, 'Ever Given')
+        self.assertEqual(self.booking.voyage_number, 'VOY99')
+
+    def test_action_confirm_with_dsv_posts_chatter(self):
+        from unittest.mock import patch
+        with patch.object(
+            type(self.env['freight.adapter.registry']), 'get_adapter',
+            return_value=self._mock_confirm(),
+        ):
+            self.booking.action_confirm_with_dsv()
+        msgs = self.booking.message_ids.filtered(
+            lambda m: 'confirmed with DSV' in (m.body or '')
+        )
+        self.assertTrue(msgs)
+
+    def test_action_cancel_calls_adapter_cancel(self):
+        from unittest.mock import patch, MagicMock
+        mock_adapter = MagicMock()
+        with patch.object(
+            type(self.env['freight.adapter.registry']), 'get_adapter',
+            return_value=mock_adapter,
+        ):
+            self.booking.action_cancel()
+        mock_adapter.cancel_booking.assert_called_once_with(self.booking)
+        self.assertEqual(self.booking.state, 'cancelled')
