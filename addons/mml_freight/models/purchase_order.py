@@ -1,4 +1,9 @@
+import logging
+
 from odoo import models, fields, api
+from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 INCOTERMS_BUYER = {'EXW', 'FCA', 'FOB', 'FAS'}
 INCOTERMS_SELLER = {'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'}
@@ -81,10 +86,15 @@ class PurchaseOrder(models.Model):
                 po.freight_responsibility = 'na'
 
     def _compute_tender_count(self):
+        # M1: use read_group to avoid N+1 search_count queries
+        groups = self.env['freight.tender'].read_group(
+            [('purchase_order_id', 'in', self.ids)],
+            ['purchase_order_id'],
+            ['purchase_order_id'],
+        )
+        counts = {g['purchase_order_id'][0]: g['purchase_order_id_count'] for g in groups}
         for po in self:
-            po.tender_count = self.env['freight.tender'].search_count([
-                ('purchase_order_id', '=', po.id),
-            ])
+            po.tender_count = counts.get(po.id, 0)
 
     def action_view_freight_tenders(self):
         self.ensure_one()
@@ -164,21 +174,46 @@ class PurchaseOrder(models.Model):
     def _auto_create_freight_tender(self):
         """Create a freight tender and fan out quote requests. Errors post to chatter."""
         self.ensure_one()
+
+        # I3: skip if there are no order lines — nothing meaningful to quote
+        if not self.order_line:
+            _logger.info('Auto-tender skipped for PO %s: no order lines', self.name)
+            return
+
+        # C2: tender creation is a configuration-level operation — let UserError propagate
+        # so Odoo surfaces the user-readable message in a dialog.
         try:
             self.action_request_freight_tender()   # creates tender + populates packages
-            tender = self.freight_tender_id
-            if tender:
-                tender.action_request_quotes()
+        except UserError:
+            raise
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(
-                'Auto-tender failed for PO %s: %s', self.name, e,
+            _logger.error(
+                'Auto-tender failed for PO %s: %s', self.name, e, exc_info=True,
             )
             self.message_post(
                 body=(
-                    f'⚠️ Auto freight tender failed: {e}. '
+                    f'Auto freight tender failed: {e}. '
                     f'Please create a tender manually from the Freight tab.'
                 ),
                 message_type='comment',
                 subtype_xmlid='mail.mt_note',
             )
+            return
+
+        # C2: quote fanout is best-effort — swallow failures so PO confirm always succeeds
+        tender = self.freight_tender_id
+        if tender:
+            try:
+                tender.action_request_quotes()
+            except Exception as e:
+                _logger.error(
+                    'Auto-tender quote fanout failed for PO %s: %s', self.name, e, exc_info=True,
+                )
+                self.message_post(
+                    body=(
+                        f'Freight tender created but quote requests failed: {e}. '
+                        f'Please request quotes manually from the tender.'
+                    ),
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
