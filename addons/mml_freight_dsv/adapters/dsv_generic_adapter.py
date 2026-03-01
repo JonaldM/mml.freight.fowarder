@@ -203,4 +203,34 @@ class DsvGenericAdapter(FreightAdapterBase):
     # ------------------------------------------------------------------
 
     def get_tracking(self, booking):
-        raise NotImplementedError('Implemented in Task 11')
+        """Fetch tracking events from DSV. Returns empty list on any error (non-fatal)."""
+        shipment_id = booking.carrier_shipment_id
+        if not shipment_id:
+            return []
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            _logger.warning('DSV tracking auth failed for %s: %s', booking.name, e)
+            return []
+        url = DSV_TRACKING_URL.format(shipment_id=shipment_id)
+        try:
+            resp = requests.get(url, headers=self._headers(token), timeout=30)
+        except Exception as e:
+            _logger.warning('DSV tracking GET failed for %s: %s', booking.name, e)
+            return []
+        if not resp.ok:
+            _logger.warning('DSV tracking HTTP %s for %s', resp.status_code, booking.name)
+            return []
+        events = []
+        for raw in (resp.json().get('events') or []):
+            event_type = raw.get('eventType', '')
+            status     = _DSV_EVENT_STATE_MAP.get(event_type, event_type.lower())
+            events.append({
+                'event_date':  raw.get('eventDate', ''),
+                'status':      status,
+                'location':    raw.get('location', ''),
+                'description': raw.get('description', ''),
+                'raw_payload': str(raw),
+                '_new_eta':    raw.get('estimatedDelivery', ''),
+            })
+        return events
