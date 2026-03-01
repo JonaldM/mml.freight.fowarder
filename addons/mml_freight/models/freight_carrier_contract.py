@@ -91,3 +91,35 @@ class FreightCarrierContract(models.Model):
             contract.utilized_quantity = utilized
             contract.remaining_quantity = committed - utilized
             contract.utilization_pct = (utilized / committed * 100) if committed else 0.0
+
+    @api.model
+    def cron_contract_pace_alert(self):
+        """Weekly cron: warn on active contracts with low utilization and <90 days remaining.
+
+        Threshold: utilization_pct < 50 AND days_remaining < 90.
+        Posts a chatter note on the contract record.
+        """
+        import datetime
+        today = fields.Date.today()
+        threshold_date = today + datetime.timedelta(days=90)
+
+        at_risk = self.search([
+            ('date_start', '<=', today),
+            ('date_end', '>=', today),
+            ('date_end', '<=', threshold_date),
+        ])
+
+        for contract in at_risk:
+            if contract.utilization_pct >= 50.0:
+                continue
+            days_remaining = (contract.date_end - today).days
+            msg = (
+                f'Commitment pace alert: {contract.utilization_pct:.1f}% utilised '
+                f'({contract.utilized_quantity:.1f} of {contract.committed_quantity:.1f} '
+                f'{contract.commitment_unit}), {days_remaining} days remaining. '
+                f'At current pace you may fall short of committed volume.'
+            )
+            contract.message_post(body=msg)
+            _logger.info(
+                'Contract pace alert posted for contract %s (%s)', contract.name, contract.id
+            )
