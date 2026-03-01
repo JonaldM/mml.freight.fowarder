@@ -48,14 +48,16 @@ class TestDsvWebhook(TransactionCase):
             'delivery_type': 'dsv_generic',
         })
         body = {'shipmentId': 'SH_WH_001', 'events': [
-            {'eventType': 'DEPARTURE', 'eventDate': '2026-05-10T08:00:00Z'},
+            {'eventType': 'DEPARTURE', 'eventDate': '2026-05-15T08:00:00Z'},
         ]}
+        count_before = len(self.booking.tracking_event_ids)
         import logging
         with self.assertLogs('odoo.addons.mml_freight.models.freight_booking', level='WARNING'):
             self._fire(body, carrier=other)
-        # No new in_transit tracking event should exist on the booking from this carrier mismatch call
-        # (there may already be one from test_valid_event_creates_tracking_record if run first,
-        # but that test uses a different date)
+        self.assertEqual(
+            len(self.booking.tracking_event_ids), count_before,
+            'Carrier mismatch must not create tracking events',
+        )
 
     def test_oversized_location_truncated(self):
         body = {'shipmentId': 'SH_WH_001', 'events': [
@@ -66,9 +68,10 @@ class TestDsvWebhook(TransactionCase):
         evt = self.booking.tracking_event_ids.filtered(
             lambda e: e.status == 'cargo_ready'
         )
-        if evt:
-            self.assertLessEqual(len(evt[-1].location), 255)
-            self.assertNotIn('\x00', evt[-1].location)
+        self.assertTrue(evt, 'Expected cargo_ready tracking event to be created')
+        self.assertLessEqual(len(evt[-1].location), 255)
+        self.assertNotIn('\x00', evt[-1].location)
+        self.assertNotIn('\x01', evt[-1].location)
 
     def test_empty_body_does_not_raise(self):
         self._fire({})

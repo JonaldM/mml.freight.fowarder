@@ -1,5 +1,6 @@
 from odoo import models, fields, api
 from odoo.exceptions import UserError
+import re
 import dateutil.parser
 import logging
 
@@ -289,8 +290,6 @@ class FreightBooking(models.Model):
         SECURITY: HMAC-SHA256 validation is performed by dsv_webhook.py before this method
         is called. All string values from body are sanitised before storage.
         """
-        import re
-
         def _sanitise(value, max_len=255):
             if not value:
                 return ''
@@ -324,17 +323,24 @@ class FreightBooking(models.Model):
         for raw in (body.get('events') or []):
             event_type  = raw.get('eventType', '')
             status      = _DSV_BOOKING_STATE_MAP.get(event_type, _sanitise(event_type.lower(), 64))
-            event_date  = _sanitise(raw.get('eventDate', ''), 50)
+            raw_date_str = raw.get('eventDate', '')
+            try:
+                event_dt = dateutil.parser.parse(raw_date_str).replace(tzinfo=None)
+            except Exception:
+                event_dt = None
             location    = _sanitise(raw.get('location', ''))
             description = _sanitise(raw.get('description', ''))
 
+            if event_dt is None:
+                continue  # skip events with unparseable dates
+
             exists = booking.tracking_event_ids.filtered(
-                lambda e: e.status == status and str(e.event_date) == event_date
+                lambda e, s=status, dt=event_dt: e.status == s and e.event_date == dt
             )
             if not exists:
                 self.env['freight.tracking.event'].create({
                     'booking_id':  booking.id,
-                    'event_date':  event_date,
+                    'event_date':  event_dt,
                     'status':      status,
                     'location':    location,
                     'description': description,
@@ -376,22 +382,31 @@ class FreightBooking(models.Model):
         state_order  = [s[0] for s in BOOKING_STATES]
 
         for evt in events:
+            raw_date_str = evt.get('event_date', '')
+            try:
+                event_dt = dateutil.parser.parse(raw_date_str).replace(tzinfo=None)
+            except Exception:
+                event_dt = None
+
+            if event_dt is None:
+                continue
+
+            evt_status = evt.get('status', '')
             exists = self.tracking_event_ids.filtered(
-                lambda e: e.status == evt.get('status')
-                and str(e.event_date) == evt.get('event_date', '')
+                lambda e, s=evt_status, dt=event_dt: e.status == s and e.event_date == dt
             )
             if not exists:
                 self.env['freight.tracking.event'].create({
                     'booking_id':  self.id,
-                    'event_date':  evt['event_date'],
-                    'status':      evt['status'],
+                    'event_date':  event_dt,
+                    'status':      evt_status,
                     'location':    evt.get('location', ''),
                     'description': evt.get('description', ''),
                     'raw_payload': evt.get('raw_payload', ''),
                 })
-            if evt.get('status') in state_order:
-                if latest_state is None or state_order.index(evt['status']) > state_order.index(latest_state):
-                    latest_state = evt['status']
+            if evt_status in state_order:
+                if latest_state is None or state_order.index(evt_status) > state_order.index(latest_state):
+                    latest_state = evt_status
             if evt.get('_new_eta'):
                 latest_eta = evt['_new_eta']  # last ETA in batch wins; fine in practice
 
