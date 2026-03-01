@@ -42,3 +42,20 @@ class TestPackageAggregation(TransactionCase):
         t = self._tender()
         self._pkg(t, 1, 2.0, 10, 10, 10, dg=True)
         self.assertTrue(t.contains_dg)
+
+    def test_weight_field_on_product(self):
+        product = self.env['product.template'].create({
+            'name': 'WeightTest',
+            'x_freight_weight': 5.5,
+        })
+        product.invalidate_recordset()
+        self.assertAlmostEqual(product.x_freight_weight, 5.5)
+
+    def test_onchange_sets_weight_from_product(self):
+        product = self.env['product.product'].create({
+            'name': 'OnchangeWeight',
+            'x_freight_weight': 2.0,
+        })
+        line = self.env['freight.tender.package'].new({'product_id': product.id})
+        line._onchange_product_id()
+        self.assertAlmostEqual(line.weight_kg, 2.0)

@@ -44,4 +44,5 @@ class FreightTenderPackage(models.Model):
             self.width_cm = tmpl.x_freight_width
             self.height_cm = tmpl.x_freight_height
             self.is_dangerous = tmpl.x_dangerous_goods
+            self.weight_kg = tmpl.x_freight_weight
             self.hs_code = getattr(self.product_id, 'hs_code', False) or ''
