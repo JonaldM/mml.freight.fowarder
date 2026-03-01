@@ -238,6 +238,75 @@ class FreightBooking(models.Model):
         )
         return True
 
+    def action_fetch_documents(self):
+        """Fetch all available documents from the carrier adapter and attach them to this booking.
+
+        For each document returned by the adapter:
+        - Creates an ir.attachment with the file bytes.
+        - Idempotent upsert of freight.document: matched on (doc_type, carrier_doc_ref).
+          If carrier_doc_ref is empty, always creates a new record (edge case).
+        - If doc_type is 'pod', updates pod_attachment_id (no unlinking — multiple PODs
+          can legitimately exist for partial deliveries).
+
+        Posts a chatter note on success. Raises UserError if no documents are available.
+        """
+        self.ensure_one()
+        registry = self.env['freight.adapter.registry']
+        adapter = registry.get_adapter(self.carrier_id)
+        if not adapter:
+            raise UserError('No adapter available for this carrier.')
+
+        docs = adapter.get_documents(self)
+        if not docs:
+            raise UserError(
+                'No documents available from carrier. '
+                'Ensure the booking has been confirmed and documents have been issued.'
+            )
+
+        count = 0
+        for doc in docs:
+            attachment = self.env['ir.attachment'].create({
+                'name': doc['filename'],
+                'type': 'binary',
+                'datas': base64.b64encode(doc['bytes']).decode(),
+                'res_model': 'freight.booking',
+                'res_id': self.id,
+                'mimetype': 'application/pdf',
+            })
+
+            carrier_doc_ref = doc.get('carrier_doc_ref', '')
+            doc_type = doc['doc_type']
+
+            # Idempotent upsert: match on (doc_type, carrier_doc_ref) when ref is set
+            existing_doc = False
+            if carrier_doc_ref:
+                existing_doc = self.document_ids.filtered(
+                    lambda d, dt=doc_type, ref=carrier_doc_ref:
+                        d.doc_type == dt and d.carrier_doc_ref == ref
+                )[:1]
+
+            if existing_doc:
+                existing_doc.attachment_id = attachment
+            else:
+                self.env['freight.document'].create({
+                    'booking_id':      self.id,
+                    'doc_type':        doc_type,
+                    'attachment_id':   attachment.id,
+                    'carrier_doc_ref': carrier_doc_ref,
+                })
+
+            if doc_type == 'pod':
+                self.pod_attachment_id = attachment
+
+            count += 1
+
+        self.message_post(
+            body=f'{count} document(s) fetched from carrier and attached.',
+            message_type='comment',
+            subtype_xmlid='mail.mt_note',
+        )
+        return True
+
     def _queue_3pl_inward_order(self):
         """Queue an inward order notice via stock_3pl_core message queue.
 

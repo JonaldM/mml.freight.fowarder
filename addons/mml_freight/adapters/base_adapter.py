@@ -47,6 +47,12 @@ class FreightAdapterBase(ABC):
         """Return label bytes or None. Optional."""
         return None
 
+    def get_documents(self, booking):
+        """Return list of document dicts: {doc_type, bytes, filename, carrier_doc_ref}.
+        Optional — returns empty list by default. Override in adapters that support document download.
+        """
+        return []
+
     def cancel_booking(self, booking):
         """Cancel a booking with the carrier. Default is a no-op. Override where supported."""
         pass

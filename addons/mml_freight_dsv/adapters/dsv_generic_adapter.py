@@ -12,6 +12,7 @@ DSV_QUOTE_URL    = f'{DSV_BASE}/qs/quote/v1/quotes'
 DSV_BOOKING_URL  = f'{DSV_BASE}/booking/v2/bookings'
 DSV_TRACKING_URL = f'{DSV_BASE}/tracking/v1/shipments/{{shipment_id}}/events'
 DSV_LABEL_URL    = f'{DSV_BASE}/printing/v1/labels/{{booking_id}}'
+DSV_DOC_LIST_URL = f'{DSV_BASE}/download/v1/shipments/bookingId/{{booking_id}}/documents'
 
 _DSV_EVENT_STATE_MAP = {
     'BOOKING_CONFIRMED': 'confirmed',
@@ -20,6 +21,16 @@ _DSV_EVENT_STATE_MAP = {
     'ARRIVED_POD':       'arrived_port',
     'CUSTOMS_CLEARED':   'customs',
     'DELIVERED':         'delivered',
+}
+
+_DSV_DOC_TYPE_MAP = {
+    'POD':                  'pod',
+    'COMMERCIAL_INVOICE':   'invoice',
+    'CUSTOMS_DECLARATION':  'customs',
+    'PACKING_LIST':         'other',
+    'HOUSE_BILL_OF_LADING': 'other',
+    'DANGEROUS_GOODS':      'other',
+    'GOODS_DOCUMENTS':      'other',
 }
 
 _DSV_PRODUCT_TYPE_TO_MODE = {
@@ -266,3 +277,59 @@ class DsvGenericAdapter(FreightAdapterBase):
             _logger.warning('DSV label HTTP %s for booking %s', resp.status_code, bk_id)
             return None
         return resp.content
+
+    # ------------------------------------------------------------------
+    # get_documents — implemented in Task 2
+    # ------------------------------------------------------------------
+
+    def get_documents(self, booking):
+        """Fetch all available documents for a booking from the DSV Document Download API.
+
+        Returns a list of dicts: {doc_type, bytes, filename, carrier_doc_ref}.
+        Returns [] on any error (auth failure, network error, non-2xx list response).
+        Individual document download failures are logged as warnings and skipped.
+        """
+        bk_id = booking.carrier_booking_id
+        if not bk_id:
+            return []
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            _logger.warning('DSV documents auth failed for %s: %s', booking.name, e)
+            return []
+        url = DSV_DOC_LIST_URL.format(booking_id=bk_id)
+        try:
+            resp = requests.get(url, headers=self._headers(token), timeout=30)
+        except Exception as e:
+            _logger.warning('DSV document list GET failed for %s: %s', booking.name, e, exc_info=True)
+            return []
+        if not resp.ok:
+            _logger.warning('DSV document list HTTP %s for booking %s', resp.status_code, bk_id)
+            return []
+        documents = []
+        for raw in (resp.json() or []):
+            download_url = raw.get('downloadUrl', '')
+            if not download_url:
+                continue
+            doc_type = _DSV_DOC_TYPE_MAP.get(raw.get('documentType', ''), 'other')
+            try:
+                dl = requests.get(download_url, headers=self._headers(token), timeout=30)
+            except Exception as e:
+                _logger.warning(
+                    'DSV document download failed for %s (type=%s): %s',
+                    bk_id, raw.get('documentType', ''), e, exc_info=True,
+                )
+                continue
+            if not dl.ok:
+                _logger.warning(
+                    'DSV document download HTTP %s for %s (type=%s)',
+                    dl.status_code, bk_id, raw.get('documentType', ''),
+                )
+                continue
+            documents.append({
+                'doc_type':        doc_type,
+                'bytes':           dl.content,
+                'filename':        raw.get('fileName', f'doc-{doc_type}.pdf'),
+                'carrier_doc_ref': raw.get('documentId', ''),
+            })
+        return documents

@@ -98,3 +98,8 @@ class DsvMockAdapter(FreightAdapterBase):
         if not self._demo():
             return self._live().get_label(booking)
         return b'%PDF-1.4-mock-label'
+
+    def get_documents(self, booking):
+        if not self._demo():
+            return self._live().get_documents(booking)
+        return [{'doc_type': 'pod', 'bytes': b'%PDF-1.4-mock-pod', 'filename': 'POD-mock.pdf', 'carrier_doc_ref': 'MOCK-POD-001'}]
