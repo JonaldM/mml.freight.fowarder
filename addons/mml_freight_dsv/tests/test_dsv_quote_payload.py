@@ -93,16 +93,28 @@ class TestDsvQuotePayload(TransactionCase):
         modes = get_product_types(self.carrier, 40.0, 'any')
         self.assertEqual(modes, ['SEA_FCL_40'])
 
-    # --- Payload structure ---
+    # --- Payload structure (DSV Quote API schema) ---
 
     def test_payload_required_top_level_keys(self):
         p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
-        for key in ('from', 'to', 'packages', 'productType', 'mdmNumber', 'unitsOfMeasurement'):
-            self.assertIn(key, p)
+        for key in ('from', 'to', 'packages', 'bookingParty', 'unitsOfMeasurement'):
+            self.assertIn(key, p, f"Missing required key: {key}")
 
-    def test_payload_product_type_set(self):
+    def test_payload_sea_lcl_has_cargo_type(self):
+        p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
+        self.assertEqual(p['cargoType'], 'LCL')
+
+    def test_payload_sea_fcl20_has_cargo_type_fcl(self):
         p = build_quote_payload(self.tender, 'SEA_FCL_20', 'MDM123')
-        self.assertEqual(p['productType'], 'SEA_FCL_20')
+        self.assertEqual(p['cargoType'], 'FCL')
+
+    def test_payload_air_has_no_cargo_type(self):
+        p = build_quote_payload(self.tender, 'AIR_EXPRESS', 'MDM123')
+        self.assertNotIn('cargoType', p)
+
+    def test_payload_mdm_in_booking_party(self):
+        p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
+        self.assertEqual(p['bookingParty']['mdm'], 'MDM123')
 
     def test_payload_origin_country_code(self):
         p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
@@ -112,9 +124,25 @@ class TestDsvQuotePayload(TransactionCase):
         p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
         self.assertEqual(p['to']['country'], 'NZ')
 
-    def test_payload_package_weight(self):
+    def test_payload_from_uses_address1_not_addressline1(self):
         p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
-        self.assertAlmostEqual(p['packages'][0]['grossWeight'], 25.0)
+        self.assertIn('address1', p['from'])
+        self.assertNotIn('addressLine1', p['from'])
+
+    def test_payload_package_total_weight(self):
+        p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
+        self.assertAlmostEqual(p['packages'][0]['totalWeight'], 25.0)
+        self.assertNotIn('grossWeight', p['packages'][0])
+
+    def test_payload_package_total_volume(self):
+        p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
+        self.assertIn('totalVolume', p['packages'][0])
+        self.assertNotIn('volume', p['packages'][0])
+
+    def test_payload_package_goods_description(self):
+        p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
+        self.assertEqual(p['packages'][0]['goodsDescription'], 'Widget')
+        self.assertNotIn('description', p['packages'][0])
 
     def test_payload_package_quantity(self):
         p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
@@ -126,6 +154,6 @@ class TestDsvQuotePayload(TransactionCase):
         self.assertEqual(uom['dimension'], 'CM')
         self.assertEqual(uom['volume'], 'M3')
 
-    def test_payload_incoterm_code(self):
+    def test_payload_source_is_public(self):
         p = build_quote_payload(self.tender, 'SEA_LCL', 'MDM123')
-        self.assertEqual(p['incoterms'], 'FOB')
+        self.assertEqual(p['source'], 'Public')

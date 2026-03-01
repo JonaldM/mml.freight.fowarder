@@ -52,36 +52,75 @@ class TestDsvBookingPayload(TransactionCase):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
         self.assertFalse(p['autobook'])
 
+    def test_product_name_for_sea_lcl(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        self.assertEqual(p['product']['name'], 'Sea')
+
+    def test_cargo_type_lcl_for_sea_lcl(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        self.assertEqual(p['cargoType'], 'LCL')
+
+    def test_cargo_type_absent_for_air(self):
+        self.quote.transport_mode = 'air'
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        self.assertNotIn('cargoType', p)
+        self.quote.transport_mode = 'sea_lcl'  # restore
+
     def test_quote_id_set(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
         self.assertEqual(p['quoteId'], 'QREF001')
 
-    def test_customer_reference_is_po_names(self):
+    def test_mdm_in_freight_payer(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
-        expected = ', '.join(self.tender.po_ids.mapped('name'))
-        self.assertEqual(p['customerReference'], expected)
+        self.assertEqual(p['parties']['freightPayer']['address']['mdm'], 'MDM002')
 
-    def test_mdm_number_from_carrier(self):
+    def test_mdm_in_booking_party(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
-        self.assertEqual(p['mdmNumber'], 'MDM002')
+        self.assertEqual(p['parties']['bookingParty']['address']['mdm'], 'MDM002')
+
+    def test_sender_country_code(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        self.assertEqual(p['parties']['sender']['address']['countryCode'], 'CN')
+
+    def test_receiver_country_code(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        self.assertEqual(p['parties']['receiver']['address']['countryCode'], 'NZ')
+
+    def test_parties_uses_address_line1_not_address1(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        sender_addr = p['parties']['sender']['address']
+        self.assertIn('addressLine1', sender_addr)
+        self.assertNotIn('address1', sender_addr)
 
     def test_packages_mapped(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
         self.assertEqual(len(p['packages']), 1)
         self.assertEqual(p['packages'][0]['quantity'], 5)
 
-    def test_package_volume_mapped(self):
+    def test_package_total_weight(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
-        self.assertAlmostEqual(p['packages'][0]['volume'], 0.12, places=6)
+        self.assertAlmostEqual(p['packages'][0]['totalWeight'], 10.0)
+        self.assertNotIn('grossWeight', p['packages'][0])
+
+    def test_package_total_volume(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        self.assertAlmostEqual(p['packages'][0]['totalVolume'], 0.12, places=6)
+        self.assertNotIn('volume', p['packages'][0])
+
+    def test_references_contain_po_name(self):
+        p = build_booking_payload(self.tender, self.quote, self.carrier)
+        po_name = self.tender.po_ids[0].name
+        ref_values = [r['value'] for r in p['references']]
+        self.assertIn(po_name, ref_values)
 
     def test_goods_description_from_package_descriptions(self):
         p = build_booking_payload(self.tender, self.quote, self.carrier)
         self.assertIn('Widget', p['goodsDescription'])
 
-    def test_shipper_country_code(self):
+    def test_no_flat_shipper_consignee_keys(self):
+        """Old flat shipper/consignee/mdmNumber keys must not appear."""
         p = build_booking_payload(self.tender, self.quote, self.carrier)
-        self.assertEqual(p['shipper']['country'], 'CN')
-
-    def test_consignee_country_code(self):
-        p = build_booking_payload(self.tender, self.quote, self.carrier)
-        self.assertEqual(p['consignee']['country'], 'NZ')
+        self.assertNotIn('shipper', p)
+        self.assertNotIn('consignee', p)
+        self.assertNotIn('mdmNumber', p)
+        self.assertNotIn('productType', p)
