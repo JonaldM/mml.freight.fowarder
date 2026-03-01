@@ -629,6 +629,14 @@ class FreightBooking(models.Model):
         if not invoice_data:
             _logger.info('DSV invoice webhook: get_invoice returned None for booking %s', booking.name)
             return
+        # Idempotency guard: skip write and chatter if actual_rate already matches.
+        # Prevents duplicate chatter notes on DSV webhook retries.
+        if booking.actual_rate and abs(booking.actual_rate - invoice_data['amount']) < 0.01:
+            _logger.info(
+                'DSV invoice webhook: actual_rate already matches (%.2f) for booking %s — skipping',
+                booking.actual_rate, booking.name,
+            )
+            return
         curr = self.env['res.currency'].search(
             [('name', '=', invoice_data.get('currency', 'NZD'))], limit=1,
         ) or booking.currency_id
