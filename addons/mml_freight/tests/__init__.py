@@ -12,6 +12,7 @@ from . import test_tender_expiry
 from . import test_booking_kpis
 from . import test_fetch_label
 from . import test_fetch_documents
+from . import test_fetch_documents_idempotency
 from . import test_fetch_invoice
 from . import test_landed_cost
 from . import test_dedup_constraints

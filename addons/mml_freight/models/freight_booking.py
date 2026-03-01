@@ -1,4 +1,5 @@
 import base64
+import hashlib
 
 from odoo import models, fields, api
 from odoo.exceptions import UserError
@@ -247,7 +248,8 @@ class FreightBooking(models.Model):
         For each document returned by the adapter:
         - Creates an ir.attachment with the file bytes.
         - Idempotent upsert of freight.document: matched on (doc_type, carrier_doc_ref).
-          If carrier_doc_ref is empty, always creates a new record (edge case).
+          If carrier_doc_ref is empty, a stable synthetic ref is generated via
+          sha256(doc_type + filename) so repeated fetches update rather than insert.
         - If doc_type is 'pod', updates pod_attachment_id (no unlinking — multiple PODs
           can legitimately exist for partial deliveries).
 
@@ -277,16 +279,22 @@ class FreightBooking(models.Model):
                 'mimetype': 'application/pdf',
             })
 
-            carrier_doc_ref = doc.get('carrier_doc_ref', '')
+            carrier_doc_ref = doc.get('carrier_doc_ref', '') or ''
             doc_type = doc['doc_type']
 
-            # Idempotent upsert: match on (doc_type, carrier_doc_ref) when ref is set
-            existing_doc = False
-            if carrier_doc_ref:
-                existing_doc = self.document_ids.filtered(
-                    lambda d, dt=doc_type, ref=carrier_doc_ref:
-                        d.doc_type == dt and d.carrier_doc_ref == ref
-                )[:1]
+            # Generate a stable synthetic ref when carrier provides none.
+            # Ensures the DB UNIQUE(booking_id, doc_type, carrier_doc_ref) constraint
+            # treats repeated fetches of the same file as updates, not inserts.
+            if not carrier_doc_ref:
+                carrier_doc_ref = 'local:' + hashlib.sha256(
+                    (doc_type + doc['filename']).encode('utf-8')
+                ).hexdigest()[:32]
+
+            # Idempotent upsert: match on (doc_type, carrier_doc_ref)
+            existing_doc = self.document_ids.filtered(
+                lambda d, dt=doc_type, ref=carrier_doc_ref:
+                    d.doc_type == dt and d.carrier_doc_ref == ref
+            )[:1]
 
             if existing_doc:
                 existing_doc.attachment_id = attachment
