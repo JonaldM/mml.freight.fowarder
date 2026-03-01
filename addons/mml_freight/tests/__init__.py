@@ -20,3 +20,4 @@ from . import test_action_book_guard
 from . import test_action_guards
 from . import test_invoice_webhook_idempotency
 from . import test_cron_sync_guard
+from . import test_carrier_contract

@@ -9,3 +9,4 @@ from . import freight_webhook_event
 from . import freight_adapter_registry
 from . import purchase_order
 from . import product_template
+from . import freight_carrier_contract
