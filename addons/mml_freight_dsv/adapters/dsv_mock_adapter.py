@@ -69,6 +69,10 @@ class DsvMockAdapter(FreightAdapterBase):
             return self._live().cancel_booking(booking)
         # No-op in demo
 
+    def handle_webhook(self, body):
+        """Dispatch DSV tracking webhook to freight.booking handler."""
+        self.env['freight.booking']._handle_dsv_tracking_webhook(self.carrier, body)
+
     def confirm_booking(self, booking):
         if not self._demo():
             return self._live().confirm_booking(booking)

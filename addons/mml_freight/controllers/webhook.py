@@ -57,4 +57,16 @@ class FreightWebhookController(http.Controller):
             return {'status': 'ok'}
 
         _logger.info('Freight webhook validated for carrier %s', carrier_id)
+
+        body = request.jsonrequest or {}
+        registry = request.env['freight.adapter.registry'].sudo()
+        adapter = registry.get_adapter(carrier.sudo())
+        if adapter:
+            try:
+                adapter.handle_webhook(body)
+            except Exception as e:
+                _logger.error(
+                    'Webhook dispatch error for carrier %s: %s', carrier_id, e,
+                )
+
         return {'status': 'ok'}

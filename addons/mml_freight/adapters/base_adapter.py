@@ -51,6 +51,16 @@ class FreightAdapterBase(ABC):
         """Cancel a booking with the carrier. Default is a no-op. Override where supported."""
         pass
 
+    def handle_webhook(self, body):
+        """Process an inbound webhook payload from the carrier.
+
+        Default is a no-op. Override in carrier-specific adapters that support webhooks.
+
+        Args:
+            body: parsed JSON payload (dict)
+        """
+        pass
+
     def confirm_booking(self, booking):
         """Confirm a booking with the carrier after carrier-side review.
 
