@@ -10,3 +10,4 @@ from . import test_tender_package_population
 from . import test_auto_tender
 from . import test_tender_expiry
 from . import test_booking_kpis
+from . import test_fetch_label

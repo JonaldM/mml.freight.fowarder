@@ -93,3 +93,8 @@ class DsvMockAdapter(FreightAdapterBase):
             'feeder_voyage_number': '',
             'eta': '',
         }
+
+    def get_label(self, booking):
+        if not self._demo():
+            return self._live().get_label(booking)
+        return b'%PDF-1.4-mock-label'

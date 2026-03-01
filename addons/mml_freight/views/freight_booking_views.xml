@@ -207,6 +207,11 @@
                             string="Cancel"
                             type="object"
                             invisible="state in ('delivered', 'received', 'cancelled')"/>
+                    <button name="action_fetch_label"
+                            string="Fetch Label"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="not carrier_booking_id or state in ('cancelled',)"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,confirmed,picked_up,in_transit,arrived_port,delivered,received"/>
                 </header>

@@ -11,6 +11,7 @@ DSV_BASE         = 'https://api.dsv.com'
 DSV_QUOTE_URL    = f'{DSV_BASE}/qs/quote/v1/quotes'
 DSV_BOOKING_URL  = f'{DSV_BASE}/booking/v2/bookings'
 DSV_TRACKING_URL = f'{DSV_BASE}/tracking/v1/shipments/{{shipment_id}}/events'
+DSV_LABEL_URL    = f'{DSV_BASE}/printing/v1/labels/{{booking_id}}'
 
 _DSV_EVENT_STATE_MAP = {
     'BOOKING_CONFIRMED': 'confirmed',
@@ -235,3 +236,33 @@ class DsvGenericAdapter(FreightAdapterBase):
                 '_new_eta':    raw.get('estimatedDelivery', ''),
             })
         return events
+
+    # ------------------------------------------------------------------
+    # get_label — implemented in Task 1
+    # ------------------------------------------------------------------
+
+    def get_label(self, booking):
+        """Fetch shipping label PDF bytes from DSV Label Print API.
+
+        Returns resp.content (bytes) on HTTP 200, None on any error or 404.
+        """
+        bk_id = booking.carrier_booking_id
+        if not bk_id:
+            return None
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            _logger.warning('DSV label fetch auth failed for %s: %s', booking.name, e)
+            return None
+        url = DSV_LABEL_URL.format(booking_id=bk_id)
+        headers = self._headers(token)
+        headers['Accept'] = 'application/pdf'
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+        except Exception as e:
+            _logger.warning('DSV label GET failed for %s: %s', booking.name, e, exc_info=True)
+            return None
+        if not resp.ok:
+            _logger.warning('DSV label HTTP %s for booking %s', resp.status_code, bk_id)
+            return None
+        return resp.content

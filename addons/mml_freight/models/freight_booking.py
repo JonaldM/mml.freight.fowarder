@@ -1,3 +1,5 @@
+import base64
+
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 from odoo.addons.mml_freight.models.freight_adapter_registry import FreightAdapterRegistry  # noqa: F401 — imported so tests can patch via this module's namespace
@@ -184,6 +186,53 @@ class FreightBooking(models.Model):
         if adapter and self.carrier_booking_id:
             adapter.cancel_booking(self)
         self.write({'state': 'cancelled'})
+        return True
+
+    def action_fetch_label(self):
+        """Fetch the shipping label PDF from the carrier adapter and attach it to this booking.
+
+        Creates or updates a freight.document record with doc_type='label' (idempotent).
+        Posts a chatter note on success. Raises UserError if the adapter returns no bytes.
+        """
+        self.ensure_one()
+        registry = self.env['freight.adapter.registry']
+        adapter = registry.get_adapter(self.carrier_id)
+        if not adapter:
+            raise UserError('No adapter available for this carrier.')
+
+        label_bytes = adapter.get_label(self)
+        if not label_bytes:
+            raise UserError(
+                'Could not fetch label from carrier. '
+                'Ensure the booking has been confirmed and a carrier booking reference is set.'
+            )
+
+        attachment = self.env['ir.attachment'].create({
+            'name': f'label_{self.name}.pdf',
+            'type': 'binary',
+            'datas': base64.b64encode(label_bytes).decode(),
+            'res_model': 'freight.booking',
+            'res_id': self.id,
+            'mimetype': 'application/pdf',
+        })
+        self.label_attachment_id = attachment
+
+        # Idempotent: update existing label doc or create a new one
+        existing_label_doc = self.document_ids.filtered(lambda d: d.doc_type == 'label')
+        if existing_label_doc:
+            existing_label_doc[:1].attachment_id = attachment
+        else:
+            self.env['freight.document'].create({
+                'booking_id': self.id,
+                'doc_type': 'label',
+                'attachment_id': attachment.id,
+            })
+
+        self.message_post(
+            body='Shipping label fetched and attached.',
+            message_type='comment',
+            subtype_xmlid='mail.mt_note',
+        )
         return True
 
     def _queue_3pl_inward_order(self):
