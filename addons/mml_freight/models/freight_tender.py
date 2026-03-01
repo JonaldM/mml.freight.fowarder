@@ -237,6 +237,20 @@ class FreightTender(models.Model):
             raise UserError('Select a quote before booking.')
         if self.state != 'selected':
             raise UserError('Tender must be in Selected state to book.')
+        # Pessimistic lock — prevents double-click race that would call the DSV API twice
+        # and create two freight.booking records for the same tender.
+        try:
+            self.env.cr.execute(
+                'SELECT id FROM freight_tender WHERE id = %s FOR UPDATE NOWAIT', [self.id]
+            )
+        except Exception:
+            raise UserError(
+                'Another operation is in progress for this tender. Please try again.'
+            )
+        # Re-check state after acquiring lock (another process may have changed it)
+        self.invalidate_recordset()
+        if self.state != 'selected':
+            raise UserError('Tender state changed — please refresh and try again.')
 
         registry = self.env['freight.adapter.registry']
         adapter  = registry.get_adapter(self.selected_quote_id.carrier_id)
