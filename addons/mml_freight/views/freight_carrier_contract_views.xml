@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- LIST VIEW -->
+    <record id="view_freight_carrier_contract_list" model="ir.ui.view">
+        <field name="name">freight.carrier.contract.list</field>
+        <field name="model">freight.carrier.contract</field>
+        <field name="arch" type="xml">
+            <list string="Carrier Contracts"
+                  decoration-success="utilization_pct &lt; 80"
+                  decoration-warning="utilization_pct &gt;= 80 and utilization_pct &lt;= 100"
+                  decoration-danger="utilization_pct &gt; 100">
+                <field name="name"/>
+                <field name="carrier_id"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="commitment_unit"/>
+                <field name="committed_quantity" string="Committed"/>
+                <field name="utilized_quantity" string="Utilized"/>
+                <field name="remaining_quantity" string="Remaining"/>
+                <field name="utilization_pct" string="Util %"/>
+                <field name="is_active" widget="boolean_toggle" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- FORM VIEW -->
+    <record id="view_freight_carrier_contract_form" model="ir.ui.view">
+        <field name="name">freight.carrier.contract.form</field>
+        <field name="model">freight.carrier.contract</field>
+        <field name="arch" type="xml">
+            <form string="Carrier Contract">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="e.g. DSV 2026 FCL Agreement"/></h1>
+                    </div>
+                    <group>
+                        <group string="Carrier">
+                            <field name="carrier_id"/>
+                            <field name="date_start"/>
+                            <field name="date_end"/>
+                            <field name="is_active" readonly="1"/>
+                        </group>
+                        <group string="Commitment Terms">
+                            <field name="commitment_unit"/>
+                            <field name="committed_quantity"/>
+                            <field name="contracted_rate"/>
+                            <field name="contracted_rate_currency_id"/>
+                        </group>
+                    </group>
+                    <group string="Utilization">
+                        <field name="utilized_quantity" readonly="1"/>
+                        <field name="remaining_quantity" readonly="1"/>
+                        <field name="utilization_pct" string="Utilization %" readonly="1"/>
+                    </group>
+                    <field name="notes" placeholder="Notes..."/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ACTION -->
+    <record id="action_freight_carrier_contract" model="ir.actions.act_window">
+        <field name="name">Carrier Contracts</field>
+        <field name="res_model">freight.carrier.contract</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

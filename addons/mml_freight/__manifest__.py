@@ -18,6 +18,7 @@
         'security/ir.model.access.csv',
         'data/ir_sequence.xml',
         'data/ir_cron.xml',
+        'views/freight_carrier_contract_views.xml',
         'views/freight_carrier_views.xml',
         'views/freight_tender_views.xml',
         'views/freight_booking_views.xml',

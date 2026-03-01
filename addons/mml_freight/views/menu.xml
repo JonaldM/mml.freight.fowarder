@@ -19,4 +19,8 @@
 
     <menuitem id="menu_freight_carriers" name="Freight Carriers"
               parent="menu_freight_root" action="action_freight_carrier" sequence="40"/>
+
+    <menuitem id="menu_freight_contracts" name="Carrier Contracts"
+              parent="menu_freight_root" action="action_freight_carrier_contract" sequence="45"
+              groups="stock.group_stock_manager"/>
 </odoo>

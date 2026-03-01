@@ -18,6 +18,24 @@
                     <field name="origin_country_ids" widget="many2many_tags"/>
                     <field name="dest_country_ids" widget="many2many_tags"/>
                 </group>
+                <notebook>
+                    <page string="Contracts" name="contracts">
+                        <field name="freight_contract_ids" context="{'default_carrier_id': active_id}">
+                            <list editable="bottom">
+                                <field name="name"/>
+                                <field name="date_start"/>
+                                <field name="date_end"/>
+                                <field name="commitment_unit"/>
+                                <field name="committed_quantity"/>
+                                <field name="contracted_rate"/>
+                                <field name="contracted_rate_currency_id"/>
+                                <field name="utilized_quantity" readonly="1"/>
+                                <field name="remaining_quantity" readonly="1"/>
+                                <field name="is_active" readonly="1"/>
+                            </list>
+                        </field>
+                    </page>
+                </notebook>
             </xpath>
         </field>
     </record>

@@ -57,6 +57,9 @@ class FreightCarrier(models.Model):
         help='HMAC-SHA256 secret shared with the carrier for webhook signature validation. '
              'Generate with: python -c "import secrets; print(secrets.token_hex(32))"',
     )
+    freight_contract_ids = fields.One2many(
+        'freight.carrier.contract', 'carrier_id', string='Contracts',
+    )
 
     def is_eligible(self, origin_country, dest_country, weight_kg, has_dg, mode_preference):
         """Return True if this carrier is eligible for the given shipment parameters.
