@@ -21,6 +21,11 @@ class FreightCarrierContract(models.Model):
             'CHECK(date_end >= date_start)',
             'Contract end date must be on or after the start date.',
         ),
+        (
+            'committed_quantity_positive',
+            'CHECK(committed_quantity > 0)',
+            'Committed quantity must be greater than zero.',
+        ),
     ]
 
     name = fields.Char('Contract Name', required=True)
@@ -82,7 +87,7 @@ class FreightCarrierContract(models.Model):
                 ('state', 'in', self.ACTIVE_BOOKING_STATES),
             ])
             utilized = sum(bookings.mapped('unit_quantity'))
-            committed = contract.committed_quantity or 1.0
+            committed = contract.committed_quantity
             contract.utilized_quantity = utilized
-            contract.remaining_quantity = contract.committed_quantity - utilized
-            contract.utilization_pct = utilized / committed * 100
+            contract.remaining_quantity = committed - utilized
+            contract.utilization_pct = (utilized / committed * 100) if committed else 0.0
