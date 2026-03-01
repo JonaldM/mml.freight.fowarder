@@ -9,9 +9,13 @@ class TestDsvQuotePayload(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.service_product = cls.env['product.product'].create({
+            'name': 'DSV Test Service',
+            'type': 'service',
+        })
         cls.carrier = cls.env['delivery.carrier'].create({
             'name': 'DSV QP Test',
-            'product_id': cls.env['product.product'].search([], limit=1).id,
+            'product_id': cls.service_product.id,
             'delivery_type': 'dsv_generic',
             'x_dsv_mdm': 'MDM123',
             'x_dsv_lcl_fcl_threshold': 15.0,
@@ -73,6 +77,21 @@ class TestDsvQuotePayload(TransactionCase):
     def test_sea_preference_uses_cbm_thresholds(self):
         modes = get_product_types(self.carrier, 5.0, 'sea')
         self.assertEqual(modes, ['SEA_LCL'])
+
+    def test_boundary_exactly_at_lcl_threshold(self):
+        # 15.0 CBM must enter grey zone 1, not stay LCL-only
+        modes = get_product_types(self.carrier, 15.0, 'any')
+        self.assertEqual(modes, ['SEA_LCL', 'SEA_FCL_20'])
+
+    def test_boundary_exactly_at_fcl20_threshold(self):
+        # 25.0 CBM must enter grey zone 2, not stay in grey zone 1
+        modes = get_product_types(self.carrier, 25.0, 'any')
+        self.assertEqual(modes, ['SEA_FCL_20', 'SEA_FCL_40'])
+
+    def test_boundary_exactly_at_fcl40_upper(self):
+        # 40.0 CBM must be FCL40-only, not grey zone 2
+        modes = get_product_types(self.carrier, 40.0, 'any')
+        self.assertEqual(modes, ['SEA_FCL_40'])
 
     # --- Payload structure ---
 
