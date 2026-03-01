@@ -66,6 +66,8 @@ class FreightBooking(models.Model):
     voyage_number = fields.Char('Voyage No.')
     container_number = fields.Char('Container No.')
     bill_of_lading = fields.Char('Bill of Lading')
+    feeder_vessel_name   = fields.Char('Feeder Vessel')
+    feeder_voyage_number = fields.Char('Feeder Voyage No.')
     awb_number = fields.Char('AWB No.')
 
     tracking_event_ids = fields.One2many(

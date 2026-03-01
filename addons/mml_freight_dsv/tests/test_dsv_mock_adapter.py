@@ -39,3 +39,18 @@ class TestDsvMockAdapter(TransactionCase):
     def test_live_raises(self):
         self.carrier.x_dsv_environment = 'production'
         with self.assertRaises(NotImplementedError): self.adapter.request_quote(self._tender())
+
+    def test_cbm_threshold_fields_exist(self):
+        self.carrier.x_dsv_lcl_fcl_threshold = 15.0
+        self.carrier.x_dsv_fcl20_fcl40_threshold = 25.0
+        self.carrier.x_dsv_fcl40_upper = 40.0
+        self.assertAlmostEqual(self.carrier.x_dsv_lcl_fcl_threshold, 15.0)
+
+    def test_feeder_vessel_fields_exist(self):
+        b = self.env['freight.booking'].create({
+            'carrier_id': self.carrier.id,
+            'currency_id': self.env.company.currency_id.id,
+        })
+        b.feeder_vessel_name = 'MSC Flaminia'
+        b.feeder_voyage_number = 'FV001'
+        self.assertEqual(b.feeder_vessel_name, 'MSC Flaminia')
