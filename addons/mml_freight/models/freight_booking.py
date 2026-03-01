@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import psycopg2
 
 from odoo import models, fields, api
 from odoo.exceptions import UserError
@@ -150,8 +151,21 @@ class FreightBooking(models.Model):
     def action_confirm_with_dsv(self):
         """Confirm booking with DSV API, update vessel/ETA fields, queue 3PL inward order."""
         self.ensure_one()
-        if self.state == 'confirmed':
-            raise UserError('This booking is already confirmed.')
+        if self.state != 'draft':
+            raise UserError('Booking must be in Draft state to confirm with carrier.')
+        # Pessimistic lock — prevents double-click making two DSV API calls for the same booking.
+        try:
+            self.env.cr.execute(
+                'SELECT id FROM freight_booking WHERE id = %s FOR UPDATE NOWAIT', [self.id]
+            )
+        except psycopg2.errors.LockNotAvailable:
+            raise UserError(
+                'Another operation is in progress for this booking. Please try again.'
+            )
+        # Re-check state after acquiring lock (another process may have changed state).
+        self.invalidate_recordset()
+        if self.state != 'draft':
+            raise UserError('Booking state changed — please refresh and try again.')
         registry = self.env['freight.adapter.registry']
         adapter = registry.get_adapter(self.carrier_id)
         if not adapter:

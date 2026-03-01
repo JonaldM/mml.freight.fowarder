@@ -30,10 +30,13 @@ class TestActionGuards(TransactionCase):
 
     # ── action_confirm_with_dsv ──────────────────────────────────────────────
 
-    def test_confirm_with_dsv_already_confirmed_raises(self):
-        """action_confirm_with_dsv raises UserError when booking is already confirmed."""
-        with self.assertRaises(UserError, msg='Must raise when already confirmed'):
-            self.booking.action_confirm_with_dsv()
+    def test_confirm_with_dsv_non_draft_raises(self):
+        """action_confirm_with_dsv raises UserError for any non-draft state."""
+        for state in ('confirmed', 'in_transit', 'cancelled', 'delivered'):
+            with self.subTest(state=state):
+                self.booking.write({'state': state})
+                with self.assertRaises(UserError):
+                    self.booking.action_confirm_with_dsv()
 
     def test_confirm_with_dsv_draft_proceeds(self):
         """action_confirm_with_dsv proceeds from draft state (no UserError raised from guard)."""
