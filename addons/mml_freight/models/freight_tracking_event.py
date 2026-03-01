@@ -6,6 +6,14 @@ class FreightTrackingEvent(models.Model):
     _description = 'Freight Booking — Tracking Event'
     _order = 'event_date desc'
 
+    _sql_constraints = [
+        (
+            'unique_booking_event',
+            'UNIQUE(booking_id, event_date, status)',
+            'A tracking event with this status and date already exists for this booking.',
+        ),
+    ]
+
     booking_id = fields.Many2one(
         'freight.booking', required=True, ondelete='cascade', index=True,
     )

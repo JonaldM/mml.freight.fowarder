@@ -14,3 +14,4 @@ from . import test_fetch_label
 from . import test_fetch_documents
 from . import test_fetch_invoice
 from . import test_landed_cost
+from . import test_dedup_constraints
