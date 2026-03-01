@@ -1,4 +1,6 @@
 from odoo import models, fields, api
+from odoo.exceptions import UserError
+import dateutil.parser
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -102,19 +104,20 @@ class FreightBooking(models.Model):
     def action_confirm_with_dsv(self):
         """Confirm booking with DSV API, update vessel/ETA fields, queue 3PL inward order."""
         self.ensure_one()
-        from odoo.exceptions import UserError
         registry = self.env['freight.adapter.registry']
-        adapter  = registry.get_adapter(self.carrier_id)
-        if not adapter or not hasattr(adapter, 'confirm_booking'):
-            raise UserError('No adapter with confirm_booking() for this carrier.')
+        adapter = registry.get_adapter(self.carrier_id)
+        if not adapter:
+            raise UserError('No adapter available for this carrier.')
 
-        result = adapter.confirm_booking(self)   # raises UserError on failure
+        try:
+            result = adapter.confirm_booking(self)
+        except NotImplementedError:
+            raise UserError('This carrier does not support booking confirmation via API.')
 
         # Parse ISO-8601 ETA string to datetime
         eta = False
         if result.get('eta'):
             try:
-                import dateutil.parser
                 eta = dateutil.parser.parse(result['eta']).replace(tzinfo=None)
             except Exception:
                 pass
@@ -158,6 +161,12 @@ class FreightBooking(models.Model):
             _logger.info(
                 'freight.booking %s: stock_3pl_core not installed — skipping 3PL handoff',
                 self.name,
+            )
+            return
+        if self.tpl_message_id:
+            _logger.info(
+                'freight.booking %s: 3PL inward order already queued (%s) — skipping duplicate',
+                self.name, self.tpl_message_id.id,
             )
             return
         po = self.purchase_order_id
