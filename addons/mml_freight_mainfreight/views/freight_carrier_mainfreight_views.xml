@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add 'Mainfreight A&O' to the delivery_type selection -->
+    <record id="view_delivery_carrier_mainfreight_type" model="ir.ui.view">
+        <field name="name">delivery.carrier.form.mainfreight.type</field>
+        <field name="model">delivery.carrier</field>
+        <field name="inherit_id" ref="delivery.view_delivery_carrier_form"/>
+        <field name="arch" type="xml">
+            <field name="delivery_type" position="attributes">
+                <attribute name="selection_add">[('mainfreight', 'Mainfreight A&amp;O')]</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Mainfreight configuration section in the freight carrier form -->
+    <record id="view_freight_carrier_mainfreight_form" model="ir.ui.view">
+        <field name="name">delivery.carrier.form.mainfreight</field>
+        <field name="model">delivery.carrier</field>
+        <field name="inherit_id" ref="mml_freight.view_freight_carrier_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='freight_config']" position="after">
+                <group string="Mainfreight Configuration" name="mf_config"
+                       invisible="delivery_type != 'mainfreight'">
+                    <field name="x_mf_environment"/>
+                    <field name="x_mf_customer_code"/>
+                    <field name="x_mf_warehouse_code"/>
+                </group>
+                <group string="Mainfreight Authentication" name="mf_auth"
+                       invisible="delivery_type != 'mainfreight'">
+                    <field name="x_mf_api_key" password="True" string="API Key"/>
+                    <p colspan="2" class="text-muted" style="font-size:smaller">
+                        Simple API key auth — no OAuth required.
+                        Header: Authorization: Secret {api_key}.
+                        Register at developer.mainfreight.com.
+                    </p>
+                </group>
+                <group string="Mainfreight Notes" name="mf_notes"
+                       invisible="delivery_type != 'mainfreight'">
+                    <p colspan="2" class="text-warning" style="font-size:smaller">
+                        Mainfreight A&amp;O has no quote or booking API. Quotes and bookings
+                        must be arranged via Mainchain portal or email. Enter the
+                        housebill/booking reference manually on the freight.booking record
+                        — tracking will then be automated via the Tracking API.
+                    </p>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
