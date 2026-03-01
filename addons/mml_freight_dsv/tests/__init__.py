@@ -5,3 +5,4 @@ from . import test_dsv_quote_payload
 from . import test_dsv_booking_payload
 from . import test_dsv_generic_adapter
 from . import test_dsv_cancel
+from . import test_dsv_confirm_booking

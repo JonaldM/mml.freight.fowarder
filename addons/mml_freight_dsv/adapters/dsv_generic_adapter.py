@@ -168,7 +168,35 @@ class DsvGenericAdapter(FreightAdapterBase):
     # ------------------------------------------------------------------
 
     def confirm_booking(self, booking):
-        raise NotImplementedError('Implemented in Task 9')
+        """Confirm DSV draft booking. Returns vessel/ETA dict. Raises UserError on failure."""
+        from odoo.exceptions import UserError
+        bk_id = booking.carrier_booking_id
+        if not bk_id:
+            raise UserError('Cannot confirm booking: no carrier_booking_id set.')
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            raise UserError(f'DSV auth failed: {e}') from e
+        url = f'{DSV_BOOKING_URL}/{bk_id}/confirm'
+        try:
+            resp = self._post_with_retry(url, {}, token)
+        except Exception as e:
+            raise UserError(f'DSV confirm booking error: {e}') from e
+        if not resp.ok:
+            raise UserError(
+                f'DSV confirm booking failed (HTTP {resp.status_code}): {resp.text[:200]}'
+            )
+        data = resp.json()
+        return {
+            'carrier_shipment_id':  data.get('shipmentId', booking.carrier_shipment_id or ''),
+            'vessel_name':          data.get('vesselName', ''),
+            'voyage_number':        data.get('voyageNumber', ''),
+            'container_number':     data.get('containerNumber', ''),
+            'bill_of_lading':       data.get('billOfLading', ''),
+            'feeder_vessel_name':   data.get('feederVesselName', ''),
+            'feeder_voyage_number': data.get('feederVoyageNumber', ''),
+            'eta':                  data.get('estimatedDelivery', ''),
+        }
 
     # ------------------------------------------------------------------
     # get_tracking — implemented in Task 11
