@@ -22,6 +22,7 @@ SELECTION_MODES = [
     ('cheapest', 'Cheapest'),
     ('fastest', 'Fastest'),
     ('best_value', 'Best Value'),
+    ('contract_aware', 'Contract Aware'),
     ('manual', 'Manual'),
 ]
 
@@ -115,6 +116,16 @@ class FreightTender(models.Model):
     )
     selection_mode = fields.Selection(SELECTION_MODES, default='manual')
     selection_reason = fields.Text('Selection Reason')
+    has_opportunity_cost_alert = fields.Boolean(
+        'Opportunity Cost Alert',
+        default=False,
+        help='Set when contract_aware selected a carrier whose contracted rate exceeds the cheapest market quote.',
+    )
+    opportunity_cost_nzd = fields.Float(
+        'Opportunity Cost (NZD)',
+        digits=(10, 2),
+        help='Contracted rate total minus cheapest market rate (NZD) for the selected tender.',
+    )
 
     booking_id = fields.Many2one('freight.booking', string='Booking', ondelete='set null')
 
@@ -256,6 +267,61 @@ class FreightTender(models.Model):
                 return cost_score * 0.6 + (100 - reliability) * 0.4 / 10
             winner = received.sorted(best_value_score)[0]
             reason = f'Auto-selected: best value (cost rank {winner.rank_by_cost}, reliability {winner.carrier_id.reliability_score:.0f})'
+        elif mode == 'contract_aware':
+            # Find contract candidates: received quotes where carrier has active contract + remaining qty > 0
+            contract_candidates = received.filtered(lambda q: q.is_contract_carrier)
+
+            if not contract_candidates:
+                # No active contract with remaining commitment — fall back to cheapest
+                winner = received.sorted('total_rate_nzd')[0]
+                reason = (
+                    f'Contract-aware: no contract commitment remaining — '
+                    f'selected cheapest market rate ({winner.total_rate_nzd:.2f} NZD, {winner.carrier_id.name})'
+                )
+                self.write({
+                    'selected_quote_id': winner.id,
+                    'state': 'selected',
+                    'selection_reason': reason,
+                    'has_opportunity_cost_alert': False,
+                    'opportunity_cost_nzd': 0.0,
+                })
+                self.message_post(body=reason)
+                return True
+
+            # Multiple contract candidates: pick lowest contracted_rate_total_nzd
+            winner = contract_candidates.sorted('contracted_rate_total_nzd')[0]
+            contract = winner.contract_id
+
+            # Compute opportunity cost vs cheapest market quote
+            oc = winner.opportunity_cost_nzd  # positive = contract costs more than market
+
+            has_alert = oc > 0
+            if has_alert:
+                reason = (
+                    f'Contract-aware: {winner.carrier_id.name} selected (contract commitment). '
+                    f'Opportunity cost vs cheapest market: +{oc:.2f} NZD. '
+                    f'Contract utilisation: {contract.utilized_quantity:.1f} of '
+                    f'{contract.committed_quantity:.1f} {contract.commitment_unit}. '
+                    f'Review if deviation from contract is warranted.'
+                )
+            else:
+                reason = (
+                    f'Contract-aware: {winner.carrier_id.name} selected. '
+                    f'Contract rate beats market by {abs(oc):.2f} NZD. '
+                    f'Contract utilisation: {contract.utilized_quantity:.1f} of '
+                    f'{contract.committed_quantity:.1f} {contract.commitment_unit}.'
+                )
+
+            self.write({
+                'selected_quote_id': winner.id,
+                'state': 'selected',
+                'selection_reason': reason,
+                'has_opportunity_cost_alert': has_alert,
+                'opportunity_cost_nzd': oc,
+            })
+            self.message_post(body=reason)
+            return True
+
         else:
             raise UserError('Manual selection mode: select a quote manually.')
 
