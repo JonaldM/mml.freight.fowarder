@@ -133,6 +133,98 @@ class FreightTenderQuote(models.Model):
         for q in self:
             q.is_selected = q.tender_id.selected_quote_id.id == q.id
 
+    # --- Contract awareness ---
+    contract_id = fields.Many2one(
+        'freight.carrier.contract',
+        string='Active Contract',
+        compute='_compute_contract_fields',
+        store=False,
+        help='Active contract for this carrier (if any).',
+    )
+    is_contract_carrier = fields.Boolean(
+        'Contract Carrier',
+        compute='_compute_contract_fields',
+        store=False,
+        help='True when this carrier has an active contract with remaining commitment.',
+    )
+    contract_remaining_qty = fields.Float(
+        'Contract Remaining',
+        compute='_compute_contract_fields',
+        store=False,
+        digits=(10, 2),
+    )
+    contracted_rate_total_nzd = fields.Float(
+        'Contracted Rate Total (NZD)',
+        compute='_compute_contract_fields',
+        store=False,
+        digits=(10, 2),
+        help='What this shipment would cost at the contracted rate, converted to NZD.',
+    )
+    opportunity_cost_nzd = fields.Float(
+        'Opportunity Cost (NZD)',
+        compute='_compute_contract_fields',
+        store=False,
+        digits=(10, 2),
+        help='Contracted rate total minus market quote total (NZD). '
+             'Positive = contract costs more than market. Negative = contract saves money.',
+    )
+
+    def _get_estimated_unit_quantity(self):
+        """Estimate unit quantity for this quote based on transport mode and tender cargo."""
+        self.ensure_one()
+        mode = self.transport_mode or ''
+        if mode == 'sea_fcl':
+            return max(1.0, float(self.tender_id.total_packages or 1))
+        elif mode in ('air', 'sea_lcl'):
+            return max(1.0, self.tender_id.chargeable_weight_kg or 1.0)
+        else:
+            return 1.0
+
+    @api.depends('carrier_id', 'transport_mode', 'total_rate_nzd',
+                 'tender_id.total_packages', 'tender_id.chargeable_weight_kg')
+    def _compute_contract_fields(self):
+        today = fields.Date.today()
+        for q in self:
+            if not q.carrier_id:
+                q.contract_id = False
+                q.is_contract_carrier = False
+                q.contract_remaining_qty = 0.0
+                q.contracted_rate_total_nzd = 0.0
+                q.opportunity_cost_nzd = 0.0
+                continue
+
+            contract = self.env['freight.carrier.contract'].search([
+                ('carrier_id', '=', q.carrier_id.id),
+                ('date_start', '<=', today),
+                ('date_end', '>=', today),
+            ], limit=1)
+
+            if not contract:
+                q.contract_id = False
+                q.is_contract_carrier = False
+                q.contract_remaining_qty = 0.0
+                q.contracted_rate_total_nzd = 0.0
+                q.opportunity_cost_nzd = 0.0
+                continue
+
+            remaining = contract.remaining_quantity
+            q.contract_id = contract
+            q.is_contract_carrier = remaining > 0
+            q.contract_remaining_qty = remaining
+
+            unit_qty = q._get_estimated_unit_quantity()
+            nzd = self.env.ref('base.NZD', raise_if_not_found=False)
+            rate_nzd = contract.contracted_rate
+            if nzd and contract.contracted_rate_currency_id != nzd:
+                rate_nzd = contract.contracted_rate_currency_id._convert(
+                    contract.contracted_rate, nzd,
+                    q.tender_id.company_id or self.env.company,
+                    today,
+                )
+            contracted_total = rate_nzd * unit_qty
+            q.contracted_rate_total_nzd = contracted_total
+            q.opportunity_cost_nzd = contracted_total - (q.total_rate_nzd or 0.0)
+
     def action_select(self):
         """Select this quote: write selected_quote_id on tender and advance to 'selected' state."""
         self.ensure_one()

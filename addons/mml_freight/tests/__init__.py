@@ -22,3 +22,4 @@ from . import test_invoice_webhook_idempotency
 from . import test_cron_sync_guard
 from . import test_carrier_contract
 from . import test_booking_unit_tracking
+from . import test_contract_opportunity_cost
