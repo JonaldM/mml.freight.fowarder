@@ -50,3 +50,14 @@ class FreightAdapterBase(ABC):
     def cancel_booking(self, booking):
         """Cancel a booking with the carrier. Default is a no-op. Override where supported."""
         pass
+
+    def confirm_booking(self, booking):
+        """Confirm a booking with the carrier after carrier-side review.
+
+        Optional — only carriers that support a two-step draft/confirm flow need to
+        implement this. Default raises NotImplementedError so callers can detect
+        capability via hasattr or try/except.
+        """
+        raise NotImplementedError(
+            f'{type(self).__name__} does not support confirm_booking()'
+        )
