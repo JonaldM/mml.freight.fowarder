@@ -99,6 +99,41 @@ class FreightBooking(models.Model):
     )
 
     transport_mode = fields.Selection(TRANSPORT_MODES)
+
+    # Contract commitment tracking
+    contract_id = fields.Many2one(
+        'freight.carrier.contract',
+        string='Carrier Contract',
+        ondelete='set null',
+        index=True,
+        help='Contract this booking counts against. Set at booking time when contract_aware tender selection is used.',
+    )
+    unit_quantity = fields.Float(
+        'Contract Units',
+        digits=(10, 3),
+        help='Quantity consumed against the contract (TEU, kg, or shipments).',
+    )
+    unit_type = fields.Selection(
+        [('teu', 'TEU'), ('weight_kg', 'Weight (kg)'), ('shipment_count', 'Shipments')],
+        string='Unit Type',
+        compute='_compute_unit_type',
+        store=True,
+        help='Mirrors the contract commitment_unit for the active transport mode.',
+    )
+
+    @api.depends('transport_mode')
+    def _compute_unit_type(self):
+        mode_map = {
+            'sea_fcl': 'teu',
+            'sea_lcl': 'weight_kg',
+            'air': 'weight_kg',
+            'road': 'shipment_count',
+            'rail': 'shipment_count',
+            'express': 'shipment_count',
+        }
+        for b in self:
+            b.unit_type = mode_map.get(b.transport_mode or '', 'shipment_count')
+
     vessel_name = fields.Char('Vessel')
     voyage_number = fields.Char('Voyage No.')
     container_number = fields.Char('Container No.')
