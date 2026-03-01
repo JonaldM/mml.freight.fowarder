@@ -139,11 +139,11 @@ class FreightTender(models.Model):
         self.ensure_one()
         if self.state not in ('draft', 'partial'):
             raise UserError('Can only request quotes from Draft or Partial Quotes state.')
-        self.write({'state': 'requesting'})
         registry = self.env['freight.adapter.registry']
         carriers = registry.get_eligible_carriers(self)
         if not carriers:
             raise UserError('No eligible carriers found for this tender. Check carrier configuration.')
+        self.write({'state': 'requesting'})
         for carrier in carriers:
             quote = self.env['freight.tender.quote'].create({
                 'tender_id': self.id,

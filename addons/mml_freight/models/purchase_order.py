@@ -85,6 +85,7 @@ class PurchaseOrder(models.Model):
             else:
                 po.freight_responsibility = 'na'
 
+    @api.depends()
     def _compute_tender_count(self):
         # M1: use read_group to avoid N+1 search_count queries
         groups = self.env['freight.tender'].read_group(
@@ -172,8 +173,12 @@ class PurchaseOrder(models.Model):
             'currency_id': self.currency_id.id,
             'freight_mode_preference': self.freight_mode_preference or 'any',
         })
-        self.freight_tender_id = tender
-        self._populate_tender_packages(tender)
+        try:
+            self._populate_tender_packages(tender)
+        except Exception:
+            tender.unlink()  # don't leave an orphaned tender linked to nothing
+            raise
+        self.freight_tender_id = tender  # only assign after successful package population
         return {
             'name': 'Freight Tender',
             'type': 'ir.actions.act_window',
