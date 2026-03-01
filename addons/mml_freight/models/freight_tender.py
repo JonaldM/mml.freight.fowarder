@@ -312,6 +312,5 @@ class FreightTender(models.Model):
             ])
             if pending_quotes:
                 pending_quotes.write({'state': 'expired'})
+            _logger.info('Freight cron: expiring %d tenders: %s', len(overdue), overdue.mapped('name'))
             overdue.write({'state': 'expired'})
-            for tender in overdue:
-                _logger.info('Freight cron: tender %s expired', tender.name)

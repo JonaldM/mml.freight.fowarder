@@ -85,7 +85,7 @@ class PurchaseOrder(models.Model):
             else:
                 po.freight_responsibility = 'na'
 
-    @api.depends()
+    @api.depends('freight_tender_id')
     def _compute_tender_count(self):
         # M1: use read_group to avoid N+1 search_count queries
         groups = self.env['freight.tender'].read_group(
