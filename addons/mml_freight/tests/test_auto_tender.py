@@ -85,7 +85,7 @@ class TestAutoTender(TransactionCase):
         mock_request_quotes.assert_not_called()
 
     def test_confirm_still_succeeds_when_quote_request_errors(self):
-        """PO confirm must succeed even if action_request_quotes raises."""
+        """PO confirm must succeed even if action_request_quotes raises; chatter note posted."""
         # I2: patch action_request_quotes to raise directly — patching the low-level adapter
         # never reached the outer handler because action_request_quotes has its own per-carrier
         # try/except that swallows the exception first.
@@ -97,6 +97,11 @@ class TestAutoTender(TransactionCase):
         ):
             po.button_confirm()   # must not raise
         self.assertEqual(po.state, 'purchase', 'PO must be confirmed despite quote failure')
+        chatter_bodies = po.message_ids.mapped('body')
+        self.assertTrue(
+            any('tender' in (b or '').lower() for b in chatter_bodies),
+            'A chatter note must be posted when quote fanout fails',
+        )
 
     def test_confirm_no_incoterm_no_tender(self):
         """PO with no incoterm → freight_responsibility=na → no tender."""
