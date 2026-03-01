@@ -70,7 +70,13 @@ class DsvMockAdapter(FreightAdapterBase):
         # No-op in demo
 
     def handle_webhook(self, body):
-        """Dispatch DSV tracking webhook to freight.booking handler."""
+        """Dispatch DSV tracking webhook to freight.booking handler.
+
+        Intentionally does not gate on _demo() / _live(): the same freight.booking
+        handler processes events in both environments.  In demo mode, webhooks
+        arrive from DSV's sandbox; in production, from the live feed.  Either way,
+        the payload schema and processing logic are identical.
+        """
         self.env['freight.booking']._handle_dsv_tracking_webhook(self.carrier, body)
 
     def confirm_booking(self, booking):

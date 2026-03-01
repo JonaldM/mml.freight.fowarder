@@ -67,6 +67,12 @@ class FreightWebhookController(http.Controller):
             except Exception as e:
                 _logger.error(
                     'Webhook dispatch error for carrier %s: %s', carrier_id, e,
+                    exc_info=True,
                 )
+                raise
+        else:
+            _logger.info(
+                'Freight webhook carrier %s has no registered adapter — ignoring', carrier_id,
+            )
 
         return {'status': 'ok'}
