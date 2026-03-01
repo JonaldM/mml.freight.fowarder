@@ -29,6 +29,8 @@
                 <field name="purchase_order_id" string="PO" optional="show"/>
                 <field name="eta" string="ETA" optional="show"/>
                 <field name="actual_delivery_date" string="Delivered" optional="hide"/>
+                <field name="transit_days_actual" string="Transit Days" optional="hide"/>
+                <field name="on_time" widget="boolean" optional="hide"/>
                 <field name="current_status" string="Last Status" optional="show"/>
                 <field name="state" widget="badge"
                        decoration-success="state in ('delivered', 'received')"
@@ -226,6 +228,8 @@
                             <field name="eta"/>
                             <field name="actual_pickup_date"/>
                             <field name="actual_delivery_date"/>
+                            <field name="transit_days_actual" readonly="1"/>
+                            <field name="on_time" widget="boolean_toggle" readonly="1"/>
                             <field name="tpl_message_id" readonly="1"/>
                         </group>
                     </group>

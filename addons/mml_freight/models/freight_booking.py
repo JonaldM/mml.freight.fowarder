@@ -75,6 +75,20 @@ class FreightBooking(models.Model):
     actual_pickup_date = fields.Datetime('Actual Pickup')
     actual_delivery_date = fields.Datetime('Actual Delivery')
 
+    transit_days_actual = fields.Float(
+        'Actual Transit Days',
+        compute='_compute_transit_kpis',
+        store=True,
+        digits=(6, 1),
+        help='Days between actual pickup and actual delivery.',
+    )
+    on_time = fields.Boolean(
+        'On Time',
+        compute='_compute_transit_kpis',
+        store=True,
+        help='True when actual delivery <= ETA (or requested delivery date if no ETA).',
+    )
+
     transport_mode = fields.Selection(TRANSPORT_MODES)
     vessel_name = fields.Char('Vessel')
     voyage_number = fields.Char('Voyage No.')
@@ -406,6 +420,32 @@ class FreightBooking(models.Model):
                     booking.state = status
 
         booking._check_inward_order_updates(prev_eta, prev_vessel)
+
+    @api.depends('actual_pickup_date', 'actual_delivery_date', 'eta',
+                 'tender_id.requested_delivery_date')
+    def _compute_transit_kpis(self):
+        for booking in self:
+            pickup   = booking.actual_pickup_date
+            delivery = booking.actual_delivery_date
+
+            if pickup and delivery:
+                delta = delivery - pickup
+                booking.transit_days_actual = delta.total_seconds() / 86400
+            else:
+                booking.transit_days_actual = 0.0
+
+            if not delivery:
+                booking.on_time = False
+            elif booking.eta:
+                booking.on_time = delivery <= booking.eta
+            else:
+                req = booking.tender_id.requested_delivery_date
+                if req:
+                    # Convert date to datetime at end-of-day for fair comparison
+                    req_dt = fields.Datetime.from_string(str(req) + ' 23:59:59')
+                    booking.on_time = delivery <= req_dt
+                else:
+                    booking.on_time = False
 
     @api.model
     def cron_sync_tracking(self):
