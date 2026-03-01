@@ -577,6 +577,49 @@ class FreightBooking(models.Model):
         })
         _logger.info('freight.booking %s: queued inward_order UPDATE %s', self.name, msg.id)
 
+    def _handle_dsv_invoice_webhook(self, carrier, body):
+        """Handle DSV Invoice webhook notification. Fetches invoice via API and updates actual_rate.
+
+        Called by dsv_webhook.py when eventType == 'Invoice'. Carrier ID validation is done
+        by the controller before this is called.
+        """
+        if not isinstance(body, dict):
+            return
+        shipment_id = body.get('shipmentId', '')
+        if not shipment_id:
+            return
+        booking = self.search([
+            ('carrier_shipment_id', '=', shipment_id),
+            ('carrier_id', '=', carrier.id),
+            ('state', 'not in', ['cancelled', 'received']),
+        ], limit=1)
+        if not booking:
+            _logger.info('DSV invoice webhook: no active booking for shipmentId %s', shipment_id)
+            return
+        registry = self.env['freight.adapter.registry']
+        adapter = registry.get_adapter(carrier)
+        if not adapter:
+            _logger.warning('DSV invoice webhook: no adapter for carrier %s', carrier.id)
+            return
+        invoice_data = adapter.get_invoice(booking)
+        if not invoice_data:
+            _logger.info('DSV invoice webhook: get_invoice returned None for booking %s', booking.name)
+            return
+        curr = self.env['res.currency'].search(
+            [('name', '=', invoice_data.get('currency', 'NZD'))], limit=1,
+        ) or booking.currency_id
+        booking.write({
+            'actual_rate': invoice_data['amount'],
+            'currency_id': curr.id if curr else booking.currency_id.id,
+        })
+        booking.message_post(
+            body=(
+                f"DSV invoice webhook: actual rate updated to "
+                f"{invoice_data['amount']:.2f} {invoice_data.get('currency', '')} "
+                f"(DSV Invoice #{invoice_data.get('dsv_invoice_id', 'N/A')})"
+            )
+        )
+
     def _handle_dsv_tracking_webhook(self, carrier, body):
         """Handle DSV TRACKING_UPDATE webhook. Caller must have validated HMAC before calling.
 

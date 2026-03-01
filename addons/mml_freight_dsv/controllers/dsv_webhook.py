@@ -64,6 +64,8 @@ class DsvWebhookController(http.Controller):
 
         if event_type == 'TRACKING_UPDATE':
             request.env['freight.booking'].sudo()._handle_dsv_tracking_webhook(carrier, body)
+        elif event_type == 'Invoice':
+            request.env['freight.booking'].sudo()._handle_dsv_invoice_webhook(carrier, body)
         else:
             _logger.warning('DSV unhandled event type: %s', event_type)
 

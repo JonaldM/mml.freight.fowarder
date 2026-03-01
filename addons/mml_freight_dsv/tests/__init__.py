@@ -12,3 +12,4 @@ from . import test_dsv_webhook_dispatch
 from . import test_dsv_label
 from . import test_dsv_documents
 from . import test_dsv_invoice
+from . import test_dsv_invoice_webhook
