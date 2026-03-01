@@ -166,3 +166,46 @@ class Test3plHandoff(TransactionCase):
         })
         connector = b._resolve_3pl_connector(warehouse, po)
         self.assertEqual(connector.id, catchall.id, 'Should fall back to catch-all when no category match')
+
+    def test_build_inward_order_payload_populates_message(self):
+        """action_confirm_with_dsv triggers _build_inward_order_payload → message state=queued."""
+        if '3pl.message' not in self.env:
+            self.skipTest('stock_3pl_core not installed')
+        from unittest.mock import patch, MagicMock
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        self._isolate_warehouse(warehouse)
+        picking_type = self.env['stock.picking.type'].search(
+            [('warehouse_id', '=', warehouse.id)], limit=1,
+        )
+        connector = self._make_connector(warehouse)
+        partner = self.env['res.partner'].create({'name': 'PL Sup'})
+        po = self.env['purchase.order'].create({
+            'partner_id': partner.id, 'picking_type_id': picking_type.id,
+        })
+        booking = self.env['freight.booking'].create({
+            'carrier_id':          self.carrier.id,
+            'currency_id':         self.env.company.currency_id.id,
+            'carrier_booking_id':  'BK_PAYLOAD_001',
+            'purchase_order_id':   po.id,
+            'vessel_name':         'MSC Oscar',
+            'voyage_number':       'VOY1',
+            'container_number':    'CONT1',
+            'state':               'draft',
+        })
+        mock_adapter = MagicMock()
+        mock_adapter.confirm_booking.return_value = {
+            'carrier_shipment_id': 'SH_PL_001', 'vessel_name': 'MSC Oscar',
+            'voyage_number': 'VOY1', 'container_number': 'CONT1',
+            'bill_of_lading': '', 'feeder_vessel_name': '', 'feeder_voyage_number': '', 'eta': '',
+        }
+        with patch.object(
+            type(self.env['freight.adapter.registry']), 'get_adapter',
+            return_value=mock_adapter,
+        ):
+            booking.action_confirm_with_dsv()
+
+        msg = booking.tpl_message_id
+        self.assertTrue(msg, '3pl.message should be created')
+        self.assertEqual(msg.state, 'queued', 'Message should be queued after payload built')
+        self.assertTrue(msg.payload_xml, 'payload_xml should be populated')
+        self.assertIn('<InwardOrder', msg.payload_xml)

@@ -227,8 +227,34 @@ class FreightBooking(models.Model):
         )
 
     def _build_inward_order_payload(self):
-        """Populate tpl_message_id.payload_xml and advance to queued. Implemented in Task 15."""
-        pass
+        """Build inward order XML and advance tpl_message_id to 'queued'."""
+        if not self.tpl_message_id:
+            return
+        # Try to load InwardOrderDocument from stock_3pl_mainfreight
+        try:
+            from odoo.addons.stock_3pl_mainfreight.document.inward_order import InwardOrderDocument
+        except ImportError:
+            _logger.info(
+                'freight.booking %s: stock_3pl_mainfreight not installed — skipping payload build',
+                self.name,
+            )
+            return
+        connector = self.tpl_message_id.connector_id
+        if not connector:
+            return
+        try:
+            doc = InwardOrderDocument(connector, self.env)
+            xml = doc.build_outbound(self, action='create')
+            self.tpl_message_id.write({'payload_xml': xml, 'state': 'queued'})
+            _logger.info(
+                'freight.booking %s: inward order payload built, message %s queued',
+                self.name, self.tpl_message_id.id,
+            )
+        except Exception as e:
+            _logger.error(
+                'freight.booking %s: failed to build inward order payload: %s',
+                self.name, e,
+            )
 
     def _resolve_3pl_connector(self, warehouse, po):
         """Return the best-matching active 3pl.connector for the given warehouse and PO.
