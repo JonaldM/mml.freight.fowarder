@@ -284,13 +284,71 @@ class FreightBooking(models.Model):
         _logger.info('freight.booking %s: queued inward_order UPDATE %s', self.name, msg.id)
 
     def _handle_dsv_tracking_webhook(self, carrier, body):
-        """Handle DSV tracking webhook payload.
+        """Handle DSV TRACKING_UPDATE webhook. Caller must have validated HMAC before calling.
 
-        SECURITY: Caller (dsv_webhook.py) MUST validate HMAC signature before invoking this.
-        When implementing: validate booking belongs to this carrier before writing any fields;
-        sanitise all string values from body before storing (max length, strip control chars).
+        SECURITY: HMAC-SHA256 validation is performed by dsv_webhook.py before this method
+        is called. All string values from body are sanitised before storage.
         """
-        _logger.info('DSV tracking webhook received for carrier %s', carrier.id)
+        import re
+
+        def _sanitise(value, max_len=255):
+            if not value:
+                return ''
+            return re.sub(r'[\x00-\x1f\x7f]', '', str(value))[:max_len]
+
+        if not isinstance(body, dict):
+            return
+        shipment_id = body.get('shipmentId', '')
+        if not shipment_id:
+            return
+
+        booking = self.search([
+            ('carrier_shipment_id', '=', shipment_id),
+            ('state', 'not in', ['cancelled', 'received']),
+        ], limit=1)
+        if not booking:
+            _logger.info('DSV webhook: no active booking for shipmentId %s', shipment_id)
+            return
+
+        if booking.carrier_id.id != carrier.id:
+            _logger.warning(
+                'DSV webhook carrier mismatch: booking %s carrier=%s, webhook carrier=%s',
+                booking.name, booking.carrier_id.id, carrier.id,
+            )
+            return
+
+        prev_eta    = booking.eta
+        prev_vessel = booking.vessel_name or ''
+        state_order = [s[0] for s in BOOKING_STATES]
+
+        for raw in (body.get('events') or []):
+            event_type  = raw.get('eventType', '')
+            status      = _DSV_BOOKING_STATE_MAP.get(event_type, _sanitise(event_type.lower(), 64))
+            event_date  = _sanitise(raw.get('eventDate', ''), 50)
+            location    = _sanitise(raw.get('location', ''))
+            description = _sanitise(raw.get('description', ''))
+
+            exists = booking.tracking_event_ids.filtered(
+                lambda e: e.status == status and str(e.event_date) == event_date
+            )
+            if not exists:
+                self.env['freight.tracking.event'].create({
+                    'booking_id':  booking.id,
+                    'event_date':  event_date,
+                    'status':      status,
+                    'location':    location,
+                    'description': description,
+                    'raw_payload': '{}',   # never log body — may contain PII
+                })
+
+            # Auto-advance state (never go backwards)
+            if status in state_order:
+                cur_idx = state_order.index(booking.state) if booking.state in state_order else -1
+                new_idx = state_order.index(status)
+                if new_idx > cur_idx:
+                    booking.state = status
+
+        booking._check_inward_order_updates(prev_eta, prev_vessel)
 
     @api.model
     def cron_sync_tracking(self):
