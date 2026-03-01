@@ -252,6 +252,9 @@ class FreightBooking(models.Model):
         if prev_eta and self.eta:
             eta_drifted = abs((self.eta - prev_eta).total_seconds()) > 86400
         vessel_now_known = not prev_vessel and bool(self.vessel_name)
+        # Note: vessel *change* (e.g. substitution mid-voyage) does not trigger an update.
+        # Only the TBA → known transition is tracked here; vessel changes are rare and
+        # handled by the freight team directly.
         if eta_drifted or vessel_now_known:
             self._queue_inward_order_update()
 
@@ -268,6 +271,8 @@ class FreightBooking(models.Model):
         connector = self._resolve_3pl_connector(warehouse, po)
         if not connector:
             return
+        # No duplicate guard — multiple UPDATE messages for the same PO are valid;
+        # each represents a distinct ETA drift or vessel-change event.
         msg = self.env['3pl.message'].create({
             'connector_id':  connector.id,
             'direction':     'outbound',
@@ -327,9 +332,10 @@ class FreightBooking(models.Model):
                     'raw_payload': evt.get('raw_payload', ''),
                 })
             if evt.get('status') in state_order:
-                latest_state = evt['status']
+                if latest_state is None or state_order.index(evt['status']) > state_order.index(latest_state):
+                    latest_state = evt['status']
             if evt.get('_new_eta'):
-                latest_eta = evt['_new_eta']
+                latest_eta = evt['_new_eta']  # last ETA in batch wins; fine in practice
 
         # Update ETA
         if latest_eta:
