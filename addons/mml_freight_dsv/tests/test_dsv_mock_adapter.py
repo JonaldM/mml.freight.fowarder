@@ -1,5 +1,16 @@
+import json
+from unittest.mock import MagicMock
 from odoo.tests.common import TransactionCase
 from odoo.addons.mml_freight_dsv.adapters.dsv_mock_adapter import DsvMockAdapter
+
+
+def _build_mock_resp(status, data):
+    m = MagicMock()
+    m.status_code = status
+    m.ok = status < 400
+    m.text = json.dumps(data)
+    m.json.return_value = data
+    return m
 
 
 class TestDsvMockAdapter(TransactionCase):
@@ -36,9 +47,23 @@ class TestDsvMockAdapter(TransactionCase):
         events = self.adapter.get_tracking(b)
         self.assertEqual(len(events), 3)
         self.assertIn('Picked Up', [e['status'] for e in events])
-    def test_live_raises(self):
+    def test_production_delegates_request_quote_to_generic(self):
+        """In production mode, DsvMockAdapter forwards to DsvGenericAdapter (mocked HTTP)."""
+        from unittest.mock import patch
         self.carrier.x_dsv_environment = 'production'
-        with self.assertRaises(NotImplementedError): self.adapter.request_quote(self._tender())
+        dsv_data = {'quotes': [{'serviceCode': 'X', 'serviceName': 'Sea', 'productType': 'SEA_LCL',
+                                 'totalCharge': {'amount': 1000.0, 'currency': 'NZD'}, 'transitDays': 20}]}
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.get_token', return_value='T'):
+            with patch('requests.post', return_value=_build_mock_resp(200, dsv_data)):
+                results = self.adapter.request_quote(self._tender())
+        self.assertIsInstance(results, list)
+        self.assertTrue(any(not r.get('_error') for r in results))
+        self.carrier.x_dsv_environment = 'demo'  # restore
+
+    def test_demo_still_returns_mock_quotes(self):
+        self.carrier.x_dsv_environment = 'demo'
+        results = self.adapter.request_quote(self._tender())
+        self.assertEqual(len(results), 2)
 
     def test_cbm_threshold_fields_exist(self):
         self.carrier.x_dsv_lcl_fcl_threshold = 15.0
