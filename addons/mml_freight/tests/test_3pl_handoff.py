@@ -168,14 +168,15 @@ class Test3plHandoff(TransactionCase):
         self.assertEqual(connector.id, catchall.id, 'Should fall back to catch-all when no category match')
 
     def test_build_inward_order_payload_populates_message(self):
-        """action_confirm_with_dsv triggers _build_inward_order_payload → message state=queued."""
+        """_build_inward_order_payload() writes XML to tpl_message_id and advances state to queued."""
         if '3pl.message' not in self.env:
             self.skipTest('stock_3pl_core not installed')
         from unittest.mock import patch, MagicMock
+        import sys
         warehouse = self.env['stock.warehouse'].search([], limit=1)
         self._isolate_warehouse(warehouse)
         picking_type = self.env['stock.picking.type'].search(
-            [('warehouse_id', '=', warehouse.id)], limit=1,
+            [('warehouse_id', '=', warehouse.id)], limit=1
         )
         connector = self._make_connector(warehouse)
         partner = self.env['res.partner'].create({'name': 'PL Sup'})
@@ -198,11 +199,25 @@ class Test3plHandoff(TransactionCase):
             'voyage_number': 'VOY1', 'container_number': 'CONT1',
             'bill_of_lading': '', 'feeder_vessel_name': '', 'feeder_voyage_number': '', 'eta': '',
         }
-        with patch.object(
-            type(self.env['freight.adapter.registry']), 'get_adapter',
-            return_value=mock_adapter,
-        ):
-            booking.action_confirm_with_dsv()
+
+        # Stub the InwardOrderDocument so this test does not require stock_3pl_mainfreight installed
+        mock_doc_cls = MagicMock()
+        mock_doc_cls.return_value.build_outbound.return_value = (
+            '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<InwardOrder action="CREATE"/>'
+        )
+        mock_module = MagicMock()
+        mock_module.InwardOrderDocument = mock_doc_cls
+
+        with patch.dict(sys.modules, {
+                'odoo.addons.stock_3pl_mainfreight': MagicMock(),
+                'odoo.addons.stock_3pl_mainfreight.document': MagicMock(),
+                'odoo.addons.stock_3pl_mainfreight.document.inward_order': mock_module,
+        }):
+            with patch(
+                'odoo.addons.mml_freight.models.freight_booking.FreightAdapterRegistry.get_adapter',
+                return_value=mock_adapter,
+            ):
+                booking.action_confirm_with_dsv()
 
         msg = booking.tpl_message_id
         self.assertTrue(msg, '3pl.message should be created')

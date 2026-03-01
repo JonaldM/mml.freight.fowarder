@@ -1,5 +1,6 @@
 from odoo import models, fields, api
 from odoo.exceptions import UserError
+from odoo.addons.mml_freight.models.freight_adapter_registry import FreightAdapterRegistry  # noqa: F401 — imported so tests can patch via this module's namespace
 import re
 import dateutil.parser
 import logging
@@ -228,6 +229,7 @@ class FreightBooking(models.Model):
 
     def _build_inward_order_payload(self):
         """Build inward order XML and advance tpl_message_id to 'queued'."""
+        self.ensure_one()
         if not self.tpl_message_id:
             return
         # Try to load InwardOrderDocument from stock_3pl_mainfreight
@@ -254,6 +256,12 @@ class FreightBooking(models.Model):
             _logger.error(
                 'freight.booking %s: failed to build inward order payload: %s',
                 self.name, e,
+            )
+            self.message_post(
+                body=f'⚠️ Failed to build Mainfreight inward order payload: {e}. '
+                     f'The 3PL message has NOT been queued — manual intervention required.',
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
             )
 
     def _resolve_3pl_connector(self, warehouse, po):
