@@ -83,7 +83,7 @@ odoo-bin -d your_db -i mml_freight,mml_freight_dsv --stop-after-init
 
 ### DSV Generic (Road / Air / Sea / Rail)
 
-Go to **Inventory → Freight → Freight Carriers** and create or edit a DSV carrier:
+Go to **Freight → Configuration → Freight Carriers** and create or edit a DSV carrier:
 
 | Field | Value |
 |-------|-------|
@@ -107,7 +107,7 @@ Same as above with `Delivery Type = DSV XPress`, plus:
 
 ### K+N (Kuehne+Nagel)
 
-Go to **Inventory → Freight → Freight Carriers** and create or edit a K+N carrier:
+Go to **Freight → Configuration → Freight Carriers** and create or edit a K+N carrier:
 
 | Field | Value |
 |-------|-------|
@@ -124,7 +124,7 @@ Auth method to be confirmed with K+N during onboarding (stub in place).
 
 ### Mainfreight A&O (Air & Ocean)
 
-Go to **Inventory → Freight → Freight Carriers** and create or edit a Mainfreight carrier:
+Go to **Freight → Configuration → Freight Carriers** and create or edit a Mainfreight carrier:
 
 | Field | Value |
 |-------|-------|
