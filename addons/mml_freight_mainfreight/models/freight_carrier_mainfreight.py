@@ -36,6 +36,15 @@ class FreightCarrierMainfreight(models.Model):
         help='UAT → test environment, no real shipments affected. '
              'Production → live Mainfreight API.',
     )
+    x_mf_webhook_secret = fields.Char(
+        'Webhook Signing Secret',
+        groups='stock.group_stock_manager',
+        password=True,
+        help='Shared secret used to validate incoming Mainfreight webhook signatures. '
+             'When set, the webhook controller validates the X-MF-Secret header against this value. '
+             'Leave blank only during initial onboarding — set before go-live. '
+             'Generate with: python -c "import secrets; print(secrets.token_hex(32))"',
+    )
 
     def cron_mf_tracking_poll(self):
         """Cron: poll Mainfreight Tracking API for active A&O bookings.

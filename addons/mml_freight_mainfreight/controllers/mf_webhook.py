@@ -9,21 +9,18 @@ This controller handles TrackingUpdate events only. InwardConfirmation and
 OrderConfirmation belong to the 3PL layer (stock_3pl_mainfreight in the
 mainfreight.3pl.intergration project) and are logged + ignored here.
 
-Auth status: UNKNOWN — clarify with Mainfreight rep during onboarding.
-Mainfreight's public docs do not document webhook authentication.
-Options:
-  - IP whitelist (simplest — Mainfreight sends from known IPs)
-  - Shared secret in Authorization header
-  - HMAC-SHA256 (not documented but standard industry practice)
-
-Until confirmed, implement IP whitelist as the fallback.
+Auth: validates X-MF-Secret header against x_mf_webhook_secret on the carrier record.
+When x_mf_webhook_secret is not configured the request is accepted with a warning
+(permissive during onboarding). Set the secret before go-live.
 
 Endpoint: POST /mainfreight/webhook
 (Configured in Mainfreight developer portal registration — not per-carrier)
 """
 
 import hashlib
+import hmac
 import logging
+import secrets
 
 from odoo import http
 from odoo.http import request
@@ -82,16 +79,30 @@ class MFWebhookController(http.Controller):
             message_type, message_id,
         )
 
-        # TODO: implement auth validation after Mainfreight rep confirms method
-        # Options:
-        #   1. IP whitelist: validate request.httprequest.remote_addr
-        #   2. Shared secret: validate header against carrier.x_mf_webhook_secret
-        #   3. HMAC: validate body signature
-
         carrier = _find_carrier(request.env)
         if not carrier:
             _logger.warning('MF webhook: no active mainfreight carrier configured.')
             return {'status': 'ok'}
+
+        # Auth: validate X-MF-Secret header when x_mf_webhook_secret is configured.
+        # If secret is unset, accept with a warning (permissive during onboarding only).
+        configured_secret = carrier.sudo().x_mf_webhook_secret
+        if configured_secret:
+            received_secret = request.httprequest.headers.get('X-MF-Secret', '')
+            if not received_secret or not secrets.compare_digest(
+                received_secret.encode('utf-8'),
+                configured_secret.encode('utf-8'),
+            ):
+                _logger.warning(
+                    'MF webhook: rejected request with invalid or missing X-MF-Secret '
+                    '(carrier=%s)', carrier.id,
+                )
+                return {'status': 'ok'}  # 200 to prevent retry storms; secret mismatch logged
+        else:
+            _logger.warning(
+                'MF webhook: x_mf_webhook_secret not configured on carrier %s — '
+                'accepting request without auth (set secret before go-live)', carrier.id,
+            )
 
         # Deduplication: use messageId if available, else SHA-256 of body
         dedup_key = message_id if message_id else hashlib.sha256(body_bytes).hexdigest()
