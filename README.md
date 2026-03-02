@@ -31,9 +31,11 @@ See `docs/plans/roq-freight-interface-contract.md` for the full integration spec
 | `mml_freight_dsv` | DSV Generic (Road/Air/Sea/Rail) and DSV XPress adapters | Required for DSV |
 | `mml_freight_knplus` | K+N (Kuehne+Nagel) adapter — mock/live delegation, credential fields, webhook receiver | Optional |
 | `mml_freight_mainfreight` | Mainfreight A&O adapter — tracking-only (no quote/booking API), webhook receiver, dedicated cron | Optional |
-| `mml_freight_demo` | Demo carriers, supplier, products, and a ready-to-tender PO for Harold | Dev/staging only |
+| `mml_freight_demo` | Demo carriers, supplier, products, and a ready-to-tender PO | Dev/staging only |
 
-**External dependency:** `stock_3pl_core` from `E:\ClaudeCode\projects\mainfreight.3pl.intergration\addons\`. Must be installed before `mml_freight`.
+**Platform dependency:** `mml_base` (event bus, capability registry, service locator) must be installed before `mml_freight`. Source: `mml.odoo.apps/mml_base/`.
+
+**External dependency:** `stock_3pl_core` from `mainfreight.3pl.intergration/addons/`. Must be installed before `mml_freight`.
 
 ---
 
@@ -60,12 +62,13 @@ stock_3pl_core installed and active
 ### Install order
 
 ```
-1. stock_3pl_core              (from mainfreight.3pl.intergration project)
-2. mml_freight
-3. mml_freight_dsv
-4. mml_freight_knplus          (optional)
-5. mml_freight_mainfreight     (optional)
-6. mml_freight_demo            (dev/staging only — do not install in production)
+1. mml_base                    (from mml.odoo.apps/mml_base/)
+2. stock_3pl_core              (from mainfreight.3pl.intergration project)
+3. mml_freight
+4. mml_freight_dsv
+5. mml_freight_knplus          (optional)
+6. mml_freight_mainfreight     (optional)
+7. mml_freight_demo            (dev/staging only — do not install in production)
 ```
 
 Via Odoo CLI:
@@ -194,7 +197,7 @@ odoo-bin --test-enable --stop-after-init \
 
 ---
 
-## Demo mode (Harold's starting point)
+## Demo mode
 
 Install `mml_freight_demo` to get:
 
