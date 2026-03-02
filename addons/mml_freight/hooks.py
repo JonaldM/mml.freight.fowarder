@@ -1,5 +1,6 @@
 def post_init_hook(env):
     """Register mml_freight capabilities and service on install."""
+    from odoo.addons.mml_freight.services.freight_service import FreightService
     env['mml.capability'].register(
         [
             'freight.tender.create',
@@ -9,6 +10,7 @@ def post_init_hook(env):
         ],
         module='mml_freight',
     )
+    env['mml.registry'].register('freight', FreightService)
 
 
 def uninstall_hook(env):
