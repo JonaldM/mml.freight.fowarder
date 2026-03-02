@@ -6,14 +6,16 @@
     'author': 'MML',
     'license': 'OPL-1',
     'depends': [
+        'mml_base',
         'mail',
         'stock',
         'account',
         'purchase',
         'delivery',
         'stock_account',
-        'stock_3pl_core',
     ],
+    'post_init_hook': 'post_init_hook',
+    'uninstall_hook': 'uninstall_hook',
     'data': [
         'security/ir.model.access.csv',
         'data/ir_sequence.xml',
