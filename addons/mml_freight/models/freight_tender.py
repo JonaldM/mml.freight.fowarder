@@ -136,7 +136,18 @@ class FreightTender(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code('freight.tender') or 'New'
             if not vals.get('tender_expiry'):
                 vals['tender_expiry'] = fields.Datetime.now() + timedelta(days=3)
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        for tender in records:
+            self.env['mml.event'].emit(
+                'freight.tender.created',
+                quantity=1,
+                billable_unit='freight_tender',
+                res_model=tender._name,
+                res_id=tender.id,
+                source_module='mml_freight',
+                payload={'tender_ref': tender.name},
+            )
+        return records
 
     @api.depends('package_line_ids.weight_kg', 'package_line_ids.volume_m3',
                  'package_line_ids.quantity', 'package_line_ids.is_dangerous')
