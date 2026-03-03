@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_purchase_order_dsv_button" model="ir.ui.view">
+        <field name="name">purchase.order.form.dsv.button</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_open_dsv_doc_upload"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-upload"
+                        string="Send to DSV"
+                        invisible="not x_dsv_booking_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

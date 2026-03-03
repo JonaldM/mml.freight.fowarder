@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dsv_doc_upload_wizard_form" model="ir.ui.view">
+        <field name="name">freight.dsv.doc.upload.wizard.form</field>
+        <field name="model">freight.dsv.doc.upload.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Send Documents to DSV">
+                <sheet>
+                    <group>
+                        <field name="po_id" readonly="1"/>
+                        <field name="booking_id" readonly="1"/>
+                    </group>
+                    <field name="line_ids">
+                        <list editable="bottom">
+                            <field name="include" string="Upload"/>
+                            <field name="filename" readonly="1"/>
+                            <field name="dsv_type"/>
+                            <field name="file_size" string="Size (bytes)" readonly="1"/>
+                            <field name="size_warning" column_invisible="1"/>
+                        </list>
+                    </field>
+                    <group invisible="not line_ids">
+                        <div class="text-muted">
+                            Files over 3 MB are pre-unchecked. DSV uploads are permanent and cannot be deleted.
+                        </div>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_upload" type="object" string="Send to DSV"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
