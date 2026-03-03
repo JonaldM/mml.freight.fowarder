@@ -1,6 +1,7 @@
-from unittest.mock import patch, MagicMock
+import unittest
+from unittest.mock import patch, MagicMock, call
 from odoo.tests.common import TransactionCase
-from odoo.addons.mml_freight_dsv.adapters.dsv_auth import get_token, DsvAuthError
+from odoo.addons.mml_freight_dsv.adapters.dsv_auth import get_token, DsvAuthError, _oauth_url
 from odoo import fields
 from datetime import timedelta
 
@@ -12,12 +13,6 @@ class TestDsvAuth(TransactionCase):
             'name': 'DSV Auth Test', 'product_id': self.env['product.product'].search([], limit=1).id,
             'delivery_type': 'dsv_generic', 'x_dsv_environment': 'demo',
         })
-
-    def test_demo_no_http(self):
-        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.requests.post') as m:
-            token = get_token(self.carrier)
-        self.assertEqual(token, 'DEMO_TOKEN')
-        m.assert_not_called()
 
     def test_cached_token_not_expired(self):
         self.carrier.write({'x_dsv_environment': 'production', 'x_dsv_client_id': 'id', 'x_dsv_client_secret': 'sec',
@@ -46,3 +41,22 @@ class TestDsvAuth(TransactionCase):
     def test_missing_creds_raises(self):
         self.carrier.write({'x_dsv_environment': 'production', 'x_dsv_client_id': False, 'x_dsv_client_secret': False})
         with self.assertRaises(DsvAuthError): get_token(self.carrier)
+
+
+class TestDsvOauthUrls(unittest.TestCase):
+    """Pure-Python tests — no Odoo DB needed."""
+
+    def _carrier(self, env):
+        m = MagicMock()
+        m.x_dsv_environment = env
+        return m
+
+    def test_demo_uses_demo_oauth_url(self):
+        url = _oauth_url(self._carrier('demo'))
+        self.assertIn('/my-demo/', url)
+        self.assertNotIn('/my/', url.replace('/my-demo/', ''))
+
+    def test_production_uses_my_oauth_url(self):
+        url = _oauth_url(self._carrier('production'))
+        self.assertIn('/my/', url)
+        self.assertNotIn('demo', url)

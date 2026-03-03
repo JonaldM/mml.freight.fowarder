@@ -5,10 +5,18 @@ from odoo import fields
 
 _logger = logging.getLogger(__name__)
 
-# DSV OAuth token endpoint (production).
-# Demo environment short-circuits before this is called (returns DEMO_TOKEN).
-# Ref: https://developer.dsv.com/oauth-guide
-_OAUTH_URL = 'https://api.dsv.com/my/oauth/v1/token'
+# DSV OAuth token endpoints — demo uses /my-demo/, production uses /my/.
+# Ref: DSV Postman collection "Demo-Access_token_with_grant-type-password"
+_OAUTH_URLS = {
+    'demo':       'https://api.dsv.com/my-demo/oauth/v1/token',
+    'production': 'https://api.dsv.com/my/oauth/v1/token',
+}
+
+
+def _oauth_url(carrier):
+    """Return the correct OAuth endpoint URL for the carrier's environment."""
+    return _OAUTH_URLS.get(getattr(carrier, 'x_dsv_environment', 'production'),
+                           _OAUTH_URLS['production'])
 
 # Refresh token when less than this many seconds remain before expiry.
 # DSV access tokens expire in 10 minutes (600s); refresh 120s before.
@@ -20,9 +28,7 @@ class DsvAuthError(Exception):
 
 
 def get_token(carrier):
-    """Return valid DSV access token. Demo mode returns DEMO_TOKEN without HTTP."""
-    if carrier.x_dsv_environment == 'demo':
-        return 'DEMO_TOKEN'
+    """Return valid DSV access token, refreshing if near expiry."""
     now = fields.Datetime.now()
     if (carrier.x_dsv_access_token and carrier.x_dsv_token_expiry
             and carrier.x_dsv_token_expiry > now + timedelta(seconds=REFRESH_WINDOW_SECONDS)):
@@ -42,7 +48,7 @@ def refresh_token(carrier):
         raise DsvAuthError(f'DSV carrier "{carrier.name}" missing OAuth credentials.')
     try:
         resp = requests.post(
-            _OAUTH_URL,
+            _oauth_url(carrier),
             headers={
                 'DSV-Subscription-Key': carrier.dsv_any_subkey(),
                 'Content-Type': 'application/x-www-form-urlencoded',
