@@ -1,3 +1,4 @@
+import unittest
 from unittest.mock import patch, MagicMock
 from odoo.tests.common import TransactionCase
 from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import DsvGenericAdapter
@@ -162,8 +163,6 @@ class TestDsvGenericAdapter(TransactionCase):
                 with self.assertRaises(UserError):
                     self._adapter().create_booking(self.tender, self._quote())
 
-
-import unittest
 
 
 class TestDsvBaseUrls(unittest.TestCase):
