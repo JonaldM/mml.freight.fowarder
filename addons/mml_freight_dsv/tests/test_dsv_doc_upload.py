@@ -108,6 +108,30 @@ class TestDsvDocUpload(TransactionCase):
             )
         self.assertEqual(result, 'RETRY-REF')
 
+    def test_upload_url_has_type_in_path_before_booking_id(self):
+        """Upload URL must be .../bookingId/{doc_type}/{booking_id}."""
+        mock_resp = _resp(status=200, json_data={'documentId': 'REF-URL'})
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token',
+                   return_value='tok'), \
+             patch('requests.post', return_value=mock_resp) as mock_post:
+            self._adapter().upload_document(
+                self.booking, 'pi.pdf', b'bytes', 'INV'
+            )
+        called_url = mock_post.call_args[0][0]
+        self.assertIn('bookingId/INV/BK-UPLOAD-001', called_url)
+
+    def test_upload_body_has_no_document_type_field(self):
+        """Upload POST body must NOT include document_type — type belongs in the URL path."""
+        mock_resp = _resp(status=200, json_data={'documentId': 'REF-BODY'})
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter.get_token',
+                   return_value='tok'), \
+             patch('requests.post', return_value=mock_resp) as mock_post:
+            self._adapter().upload_document(
+                self.booking, 'pi.pdf', b'bytes', 'PKL'
+            )
+        call_kwargs = mock_post.call_args[1]
+        self.assertNotIn('document_type', call_kwargs.get('data', {}))
+
 
 class TestDetectDsvType(unittest.TestCase):
 

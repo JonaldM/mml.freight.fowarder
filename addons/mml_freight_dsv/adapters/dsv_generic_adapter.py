@@ -388,13 +388,12 @@ class DsvGenericAdapter(FreightAdapterBase):
     def upload_document(self, booking, filename, file_bytes, dsv_type):
         """Upload a document to DSV against a booking reference.
 
-        DSV Upload API: POST /my/upload/v1/shipments/{booking_id}/documents
-        Body: multipart/form-data — file + document_type
+        DSV Upload API: POST /my/upload/v1/shipments/bookingId/{doc_type}/{booking_id}
+        Body: multipart/form-data — file only (doc type is a URL path parameter)
         Supported dsv_type codes: CUS, GDS, HAZ, INV, PKL
 
         Returns carrier_upload_ref (str) on success, None on any failure.
         Note: uploads are permanent — DSV provides no delete endpoint.
-        Note: exact endpoint path to confirm against demo sandbox.
         """
         bk_id = booking.carrier_booking_id
         if not bk_id:
@@ -405,7 +404,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         except DsvAuthError as e:
             _logger.warning('DSV upload_document auth failed for %s: %s', booking.name, e)
             return None
-        url = f'{_generic_base(self.carrier)}/upload/v1/shipments/{bk_id}/documents'
+        url = f'{_generic_base(self.carrier)}/upload/v1/shipments/bookingId/{dsv_type}/{bk_id}'
         headers = {
             'Authorization': f'Bearer {token}',
             'DSV-Subscription-Key': self.carrier.dsv_subkey('doc_upload'),
@@ -415,7 +414,6 @@ class DsvGenericAdapter(FreightAdapterBase):
                 url,
                 headers=headers,
                 files={'file': (filename, file_bytes, 'application/octet-stream')},
-                data={'document_type': dsv_type},
                 timeout=60,
             )
         except Exception as e:
@@ -434,7 +432,6 @@ class DsvGenericAdapter(FreightAdapterBase):
                     url,
                     headers=headers,
                     files={'file': (filename, file_bytes, 'application/octet-stream')},
-                    data={'document_type': dsv_type},
                     timeout=60,
                 )
             except Exception as e:
