@@ -42,6 +42,44 @@ class TestDsvAuth(TransactionCase):
         self.carrier.write({'x_dsv_environment': 'production', 'x_dsv_client_id': False, 'x_dsv_client_secret': False})
         with self.assertRaises(DsvAuthError): get_token(self.carrier)
 
+    def test_demo_uses_demo_oauth_url(self):
+        """Demo environment authenticates against /my-demo/ OAuth endpoint."""
+        self.carrier.write({
+            'x_dsv_environment': 'demo',
+            'x_dsv_client_id': 'demo-id',
+            'x_dsv_client_secret': 'demo-secret',
+            'x_dsv_access_token': False,
+            'x_dsv_token_expiry': False,
+        })
+        mock_resp = MagicMock(ok=True, status_code=200)
+        mock_resp.json.return_value = {'access_token': 'DEMO_REAL_TOKEN', 'expires_in': 600}
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.requests.post',
+                   return_value=mock_resp) as mock_post:
+            token = get_token(self.carrier)
+        called_url = mock_post.call_args[0][0]
+        self.assertIn('my-demo', called_url)
+        self.assertNotIn('/my/', called_url.replace('my-demo', ''))
+        self.assertEqual(token, 'DEMO_REAL_TOKEN')
+
+    def test_production_uses_my_oauth_url(self):
+        """Production environment authenticates against /my/ OAuth endpoint."""
+        self.carrier.write({
+            'x_dsv_environment': 'production',
+            'x_dsv_client_id': 'prod-id',
+            'x_dsv_client_secret': 'prod-secret',
+            'x_dsv_access_token': False,
+            'x_dsv_token_expiry': False,
+        })
+        mock_resp = MagicMock(ok=True, status_code=200)
+        mock_resp.json.return_value = {'access_token': 'PROD_TOKEN', 'expires_in': 600}
+        with patch('odoo.addons.mml_freight_dsv.adapters.dsv_auth.requests.post',
+                   return_value=mock_resp) as mock_post:
+            token = get_token(self.carrier)
+        called_url = mock_post.call_args[0][0]
+        self.assertIn('/my/', called_url)
+        self.assertNotIn('my-demo', called_url)
+        self.assertEqual(token, 'PROD_TOKEN')
+
 
 class TestDsvOauthUrls(unittest.TestCase):
     """Pure-Python tests — no Odoo DB needed."""
