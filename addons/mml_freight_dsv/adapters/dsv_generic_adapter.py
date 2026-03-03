@@ -411,6 +411,8 @@ class DsvGenericAdapter(FreightAdapterBase):
         except Exception as e:
             _logger.warning('DSV upload_document request failed for %s: %s', booking.name, e)
             return None
+        # TODO: consolidate with _post_with_retry once endpoint is confirmed from sandbox
+        #       (multipart/files= uploads can't use the current json= only helper)
         if resp.status_code == 401:
             try:
                 token = refresh_token(self.carrier)

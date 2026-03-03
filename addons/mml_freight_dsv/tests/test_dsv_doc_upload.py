@@ -1,4 +1,3 @@
-import base64
 from unittest.mock import patch, MagicMock
 from odoo.tests.common import TransactionCase
 from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import DsvGenericAdapter
