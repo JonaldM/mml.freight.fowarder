@@ -5,6 +5,8 @@ DOC_TYPES = [
     ('pod', 'Proof of Delivery'),
     ('invoice', 'Freight Invoice'),
     ('customs', 'Customs Document'),
+    ('packing_list', 'Packing List'),
+    ('quarantine', 'Quarantine / Phytosanitary'),
     ('other', 'Other'),
 ]
 
@@ -28,3 +30,5 @@ class FreightDocument(models.Model):
     doc_type = fields.Selection(DOC_TYPES, string='Type', required=True, default='other')
     attachment_id = fields.Many2one('ir.attachment', string='Attachment', ondelete='set null')
     carrier_doc_ref = fields.Char('Carrier Doc Ref')
+    uploaded_to_carrier = fields.Boolean('Uploaded to Carrier', default=False)
+    carrier_upload_ref = fields.Char('Carrier Upload Ref', readonly=True)

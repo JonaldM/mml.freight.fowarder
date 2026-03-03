@@ -25,3 +25,4 @@ from . import test_booking_unit_tracking
 from . import test_contract_opportunity_cost
 from . import test_contract_aware_selection
 from . import test_contract_cron
+from . import test_freight_document_model
