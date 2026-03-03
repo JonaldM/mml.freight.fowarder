@@ -14,3 +14,4 @@ from . import test_dsv_documents
 from . import test_dsv_invoice
 from . import test_dsv_invoice_webhook
 from . import test_dsv_webhook_dedup
+from . import test_dsv_doc_upload

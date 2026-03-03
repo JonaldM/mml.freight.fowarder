@@ -45,22 +45,22 @@ _DSV_PRODUCT_TYPE_TO_MODE = {
 class DsvGenericAdapter(FreightAdapterBase):
     """Live DSV Generic adapter. Not directly registered — used via DsvMockAdapter delegation."""
 
-    def _headers(self, token):
+    def _headers(self, token, service='booking'):
         return {
-            'Authorization':      f'Bearer {token}',
-            'DSV-Subscription-Key': self.carrier.x_dsv_subscription_key or '',
-            'Content-Type':       'application/json',
+            'Authorization':        f'Bearer {token}',
+            'DSV-Subscription-Key': self.carrier.dsv_subkey(service),
+            'Content-Type':         'application/json',
         }
 
-    def _post_with_retry(self, url, payload, token):
+    def _post_with_retry(self, url, payload, token, service='booking'):
         """POST to DSV. Retries once on 401 after token refresh."""
-        resp = requests.post(url, json=payload, headers=self._headers(token), timeout=30)
+        resp = requests.post(url, json=payload, headers=self._headers(token, service), timeout=30)
         if resp.status_code == 401:
             try:
                 token = refresh_token(self.carrier)
             except DsvAuthError:
                 return resp
-            resp = requests.post(url, json=payload, headers=self._headers(token), timeout=30)
+            resp = requests.post(url, json=payload, headers=self._headers(token, service), timeout=30)
         return resp
 
     # ------------------------------------------------------------------
@@ -85,7 +85,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             payload = build_quote_payload(tender, product_type, mdm)
             quote_url = f'{_DSV_QUOTE_BASE}/quote/v1/quotes'
             try:
-                resp = self._post_with_retry(quote_url, payload, token)
+                resp = self._post_with_retry(quote_url, payload, token, service='quote')
             except Exception as e:
                 _logger.error('DSV quote request failed (%s): %s', product_type, e)
                 results.append({'_error': True, 'error_message': str(e)[:500]})
@@ -137,7 +137,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         payload = build_booking_payload(tender, selected_quote, self.carrier)
         booking_url = f'{_DSV_GENERIC_BASE}/booking/v2/bookings'
         try:
-            resp = self._post_with_retry(booking_url, payload, token)
+            resp = self._post_with_retry(booking_url, payload, token, service='booking')
         except Exception as e:
             raise UserError(f'DSV booking API error: {e}') from e
         if not resp.ok:
@@ -168,7 +168,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             return
         url = f'{_DSV_GENERIC_BASE}/booking/v2/bookings/{bk_id}'
         try:
-            resp = requests.delete(url, headers=self._headers(token), timeout=30)
+            resp = requests.delete(url, headers=self._headers(token, 'booking'), timeout=30)
         except Exception as e:
             _logger.warning('DSV cancel booking %s: request error %s', bk_id, e)
             return
@@ -194,7 +194,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             raise UserError(f'DSV auth failed: {e}') from e
         url = f'{_DSV_GENERIC_BASE}/booking/v2/bookings/{bk_id}/confirm'
         try:
-            resp = self._post_with_retry(url, {}, token)
+            resp = self._post_with_retry(url, {}, token, service='booking')
         except Exception as e:
             raise UserError(f'DSV confirm booking error: {e}') from e
         if not resp.ok:
@@ -231,7 +231,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         # v2 replaces the deprecated v1 endpoint; returns full shipment detail with events array.
         url = f'{_DSV_GENERIC_BASE}/tracking/v2/shipments/tmsId/{shipment_id}'
         try:
-            resp = requests.get(url, headers=self._headers(token), timeout=30)
+            resp = requests.get(url, headers=self._headers(token, 'visibility'), timeout=30)
         except Exception as e:
             _logger.warning('DSV tracking GET failed for %s: %s', booking.name, e, exc_info=True)
             return []
@@ -270,7 +270,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             _logger.warning('DSV label fetch auth failed for %s: %s', booking.name, e)
             return None
         url = f'{_DSV_GENERIC_BASE}/printing/v1/labels/{bk_id}'
-        headers = self._headers(token)
+        headers = self._headers(token, 'doc_download')
         headers['Accept'] = 'application/pdf'
         try:
             resp = requests.get(url, params={'printFormat': 'Portrait1Label'}, headers=headers, timeout=30)
@@ -303,7 +303,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             return []
         url = f'{_DSV_GENERIC_BASE}/download/v1/shipments/bookingId/{bk_id}/documents'
         try:
-            resp = requests.get(url, headers=self._headers(token), timeout=30)
+            resp = requests.get(url, headers=self._headers(token, 'doc_download'), timeout=30)
         except Exception as e:
             _logger.warning('DSV document list GET failed for %s: %s', booking.name, e, exc_info=True)
             return []
@@ -317,7 +317,7 @@ class DsvGenericAdapter(FreightAdapterBase):
                 continue
             doc_type = _DSV_DOC_TYPE_MAP.get(raw.get('documentType', ''), 'other')
             try:
-                dl = requests.get(download_url, headers=self._headers(token), timeout=30)
+                dl = requests.get(download_url, headers=self._headers(token, 'doc_download'), timeout=30)
             except Exception as e:
                 _logger.warning(
                     'DSV document download failed for %s (type=%s): %s',
@@ -354,7 +354,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             return None
         url = f'{_DSV_GENERIC_BASE}/invoice/v1/invoices/shipments/{shipment_id}'
         try:
-            resp = requests.get(url, headers=self._headers(token), timeout=30)
+            resp = requests.get(url, headers=self._headers(token, 'invoicing'), timeout=30)
         except Exception as e:
             _logger.warning('DSV invoice GET failed for %s: %s', booking.name, e)
             return None
@@ -370,3 +370,69 @@ class DsvGenericAdapter(FreightAdapterBase):
             'currency':       data.get('currency', 'NZD'),
             'invoice_date':   data.get('invoiceDate', ''),
         }
+
+    # ------------------------------------------------------------------
+    # upload_document
+    # ------------------------------------------------------------------
+
+    def upload_document(self, booking, filename, file_bytes, dsv_type):
+        """Upload a document to DSV against a booking reference.
+
+        DSV Upload API: POST /my/upload/v1/shipments/{booking_id}/documents
+        Body: multipart/form-data — file + document_type
+        Supported dsv_type codes: CUS, GDS, HAZ, INV, PKL
+
+        Returns carrier_upload_ref (str) on success, None on any failure.
+        Note: uploads are permanent — DSV provides no delete endpoint.
+        Note: exact endpoint path to confirm against demo sandbox.
+        """
+        bk_id = booking.carrier_booking_id
+        if not bk_id:
+            _logger.warning('DSV upload_document: no carrier_booking_id on booking %s', booking.name)
+            return None
+        try:
+            token = get_token(self.carrier)
+        except DsvAuthError as e:
+            _logger.warning('DSV upload_document auth failed for %s: %s', booking.name, e)
+            return None
+        url = f'{_DSV_GENERIC_BASE}/upload/v1/shipments/{bk_id}/documents'
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'DSV-Subscription-Key': self.carrier.dsv_subkey('doc_upload'),
+        }
+        try:
+            resp = requests.post(
+                url,
+                headers=headers,
+                files={'file': (filename, file_bytes, 'application/octet-stream')},
+                data={'document_type': dsv_type},
+                timeout=60,
+            )
+        except Exception as e:
+            _logger.warning('DSV upload_document request failed for %s: %s', booking.name, e)
+            return None
+        if resp.status_code == 401:
+            try:
+                token = refresh_token(self.carrier)
+            except DsvAuthError:
+                return None
+            headers['Authorization'] = f'Bearer {token}'
+            try:
+                resp = requests.post(
+                    url,
+                    headers=headers,
+                    files={'file': (filename, file_bytes, 'application/octet-stream')},
+                    data={'document_type': dsv_type},
+                    timeout=60,
+                )
+            except Exception as e:
+                _logger.warning('DSV upload_document retry failed for %s: %s', booking.name, e)
+                return None
+        if not resp.ok:
+            _logger.warning('DSV upload_document HTTP %s for %s', resp.status_code, booking.name)
+            return None
+        try:
+            data = resp.json()
+            return data.get('documentId') or data.get('uploadId') or f'UPLOADED-{dsv_type}-{bk_id}'
+        except Exception:
+            return f'UPLOADED-{dsv_type}-{bk_id}'
