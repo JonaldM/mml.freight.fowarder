@@ -115,3 +115,8 @@ class DsvMockAdapter(FreightAdapterBase):
             'currency':       booking.currency_id.name if booking.currency_id else 'NZD',
             'invoice_date':   str(fields.Date.today()),
         }
+
+    def upload_document(self, booking, filename, file_bytes, dsv_type):
+        if not self._demo():
+            return self._live().upload_document(booking, filename, file_bytes, dsv_type)
+        return f'MOCK-UPLOAD-{dsv_type}-{next(_counter):04d}'

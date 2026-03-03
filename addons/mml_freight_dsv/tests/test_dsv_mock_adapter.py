@@ -124,3 +124,35 @@ class TestDsvMockAdapter(TransactionCase):
         b.feeder_vessel_name = 'MSC Flaminia'
         b.feeder_voyage_number = 'FV001'
         self.assertEqual(b.feeder_vessel_name, 'MSC Flaminia')
+
+    def test_upload_document_demo_returns_mock_ref(self):
+        """Demo mode returns a mock upload ref without HTTP."""
+        from unittest.mock import patch
+        from odoo.addons.mml_freight_dsv.adapters.dsv_mock_adapter import DsvMockAdapter
+        carrier = self.env['delivery.carrier'].create({
+            'name': 'DSV Mock Upload',
+            'product_id': self.env['product.product'].create(
+                {'name': 'Upload Mock Product', 'type': 'service'}
+            ).id,
+            'delivery_type': 'dsv_generic',
+            'x_dsv_environment': 'demo',
+        })
+        supplier = self.env['res.partner'].create({'name': 'Mock Upload Supplier'})
+        po = self.env['purchase.order'].create({'partner_id': supplier.id})
+        tender = self.env['freight.tender'].create({
+            'po_ids': [(4, po.id)],
+            'company_id': self.env.company.id,
+            'currency_id': self.env.company.currency_id.id,
+        })
+        booking = self.env['freight.booking'].create({
+            'carrier_id': carrier.id,
+            'tender_id': tender.id,
+            'currency_id': self.env.company.currency_id.id,
+            'carrier_booking_id': 'MOCK-BK-001',
+        })
+        adapter = DsvMockAdapter(carrier, self.env)
+        with patch('requests.post') as mock_post:
+            result = adapter.upload_document(booking, 'pi.pdf', b'bytes', 'INV')
+        self.assertIsNotNone(result)
+        self.assertIn('MOCK', result)
+        mock_post.assert_not_called()
