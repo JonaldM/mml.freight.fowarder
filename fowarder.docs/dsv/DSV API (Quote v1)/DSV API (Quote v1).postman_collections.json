@@ -1,0 +1,692 @@
+{
+	"info": {
+		"_postman_id": "3d7f6613-c42e-4c8b-bc96-1a1f98b0052a",
+		"name": "DSV API (Quote v1)",
+		"description": "This collection provides all the necessary endpoints for integrating with DSV’s Quote API services.\n\n  \nIt includes:\n\n- **Authentication**: Fetch and refresh access tokens\n    \n- **Quote APIs**: Submit, retrieve, filter, and cancel quote requests\n    \n- **Webhooks**: Receive real-time notifications on quote lifecycle events\n    \n\nDesigned to support seamless and automated quoting workflows for shipment management across DSV’s supported transport modes.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "28876089"
+	},
+	"item": [
+		{
+			"name": "Fetch the Access Token",
+			"item": [
+				{
+					"name": "Get the token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    let jsonData = pm.response.json();",
+									"",
+									"    if (jsonData.access_token) {",
+									"        pm.collectionVariables.set(\"access_token\", jsonData.access_token);",
+									"        console.log(\"✅ access_token saved to collection variables\");",
+									"    } else {",
+									"        console.warn(\"⚠️ access_token not found in response\");",
+									"    }",
+									"",
+									"    if (jsonData.refresh_token) {",
+									"        pm.collectionVariables.set(\"refresh_token\", jsonData.refresh_token);",
+									"        console.log(\"✅ refresh_token saved to collection variables\");",
+									"    } else {",
+									"        console.warn(\"⚠️ refresh_token not found in response\");",
+									"    }",
+									"",
+									"} else {",
+									"    console.error(`❌ Token request failed with status ${pm.response.code}`);",
+									"}",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "client_credentials",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "",
+									"description": "myDSV username",
+									"type": "text"
+								},
+								{
+									"key": "client_secret",
+									"value": "",
+									"description": "myDSV password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh the token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    let jsonData = pm.response.json();",
+									"",
+									"    if (jsonData.access_token) {",
+									"        pm.collectionVariables.set(\"access_token\", jsonData.access_token);",
+									"        console.log(\"✅ access_token saved to collection variables\");",
+									"    } else {",
+									"        console.warn(\"⚠️ access_token not found in response\");",
+									"    }",
+									"",
+									"    if (jsonData.refresh_token) {",
+									"        pm.collectionVariables.set(\"refresh_token\", jsonData.refresh_token);",
+									"        console.log(\"✅ refresh_token saved to collection variables\");",
+									"    } else {",
+									"        console.warn(\"⚠️ refresh_token not found in response\");",
+									"    }",
+									"",
+									"} else {",
+									"    console.error(`❌ Token request failed with status ${pm.response.code}`);",
+									"}",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "refresh_token",
+									"type": "text"
+								},
+								{
+									"key": "refresh_token",
+									"value": "{{refresh_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "This folder contains authentication endpoints required to access DSV’s secured APIs.\n\nUse these endpoints to:\n\n- Obtain a new `access_token` using client credentials\n    \n- Refresh the token using a valid `refresh_token`\n    \n\nThe retrieved `access_token` must be included in the `Authorization` header (`Bearer`) for all subsequent API requests.\n\nA Postman test script is included to automatically extract and store the `access_token` and `refresh_token` as **collection variables**, so they can be reused across the collection without manual copying."
+		},
+		{
+			"name": "Quote API",
+			"item": [
+				{
+					"name": "Submit Quote",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"requestedBy\": {\n        \"userId\": \"test.email@test.com\",\n        \"name\": \"Test name\",\n        \"firstName\": \"Test First Name\",\n        \"lastName\": \"Test Surname\",\n        \"email\": \"test.email@test.com\",\n        \"language\": \"en\",\n        \"phone\": \"+48123456789\"\n    },\n    \"requestDate\": \"2026-05-28\",\n    \"readyForBookDate\": \"2026-12-06T11:39:28.190Z\",\n    \"bookingParty\": {\n        \"mdm\": \"Type your MDM\",\n        \"mainMdm\": \"Type your MDM\",\n        \"name\": \"Test Name\",\n        \"address1\": \"Test Address\",\n        \"country\": \"GB\",\n        \"state\": null,\n        \"zipCode\": \"00000\",\n        \"city\": \"Cty\"\n    },\n    \"pickupType\": \"DSV\",\n    \"from\": {\n        \"mdm\": null,\n        \"mainMdm\": null,\n        \"name\": \"Test Pickup\",\n        \"address1\": \"Test Pickup Address\",\n        \"country\": \"GB\",\n        \"state\": null,\n        \"zipCode\": \"00000\",\n        \"city\": \"Cty\"\n    },\n    \"to\": {\n        \"country\": \"BE\",\n        \"state\": null,\n        \"zipCode\": \"000\",\n        \"city\": \"City of Delivery\"\n    },\n    \"pickupDate\": \"2026-06-12\",\n    \"deliveryDate\": \"2026-06-15\",\n    \"references\": [\n        {\n            \"name\": \"reference name\",\n            \"type\": \"Shipper\",\n            \"value\": \"reference value\"\n        }\n    ],\n    \"insurance\": null,\n    \"cargoType\": \"LCL\",\n    \"packages\": [\n        {\n            \"goodsDescription\": \"package1\",\n            \"packageType\": \"PLL\",\n            \"quantity\": 11,\n            \"length\": 120,\n            \"width\": 80,\n            \"height\": 100,\n            \"totalWeight\": 10,\n            \"totalVolume\": 10.56,\n            \"stackable\": \"NotStackable\",\n            \"palletSpace\": null,\n            \"loadMeters\": 1.9,\n            \"temperatureControlled\": {\n                \"minTemperature\": 0,\n                \"maxTemperature\": 0\n            },\n            \"dangerousGoods\": []\n        }\n    ],\n    \"unitsOfMeasurement\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"temperature\": \"C\"\n    },\n    \"totalWeight\": 10,\n    \"source\": \"Public\",\n    \"air\": {\n        \"originAirport\": \"string\",\n        \"destinationAirport\": \"string\",\n        \"batteries\": \"None\",\n        \"incoterms\": {\n            \"code\": \"EXW\",\n            \"location\": \"string\"\n        },\n        \"serviceLevel\": \"string\",\n        \"notes\": \"string\"\n    },\n    \"sea\": {\n        \"originPort\": \"string\",\n        \"destinationPort\": \"string\",\n        \"incoterms\": {\n            \"code\": \"EXW\",\n            \"location\": \"string\"\n        },\n        \"serviceLevel\": \"string\",\n        \"notes\": \"string\"\n    },\n    \"road\": {\n        \"incoterms\": {\n            \"code\": \"EXW\",\n            \"location\": \"string\"\n        },\n        \"serviceAndSurchargeIds\": [\n            \"3fa85f64-5717-4562-b3fc-2c963f66afa6\"\n        ],\n        \"serviceLevel\": \"string\",\n        \"notes\": \"string\"\n    },\n    \"financialOwners\": [\n        {\n            \"modeOfTransport\": \"Road\",\n            \"country\": \"string\",\n            \"includedInRwf\": true\n        }\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/qs-demo/quote/v1/quotes",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"qs-demo",
+								"quote",
+								"v1",
+								"quotes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Filter Quotes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept-encoding": true,
+							"accept": true,
+							"user-agent": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pageNumber\": 0,\n    \"pageSize\": 0,\n    \"sort\": {\n        \"property\": \"CREATED_BY - Sort by user who created quote request\",\n        \"direction\": \"ASC - Ascending order\"\n    },\n    \"searchText\": \"string\",\n    \"statuses\": [\n        \"Draft - Draft\"\n    ],\n    \"mots\": [\n        \"Road - Road\"\n    ],\n    \"fromCountry\": \"string\",\n    \"toCountry\": \"string\",\n    \"createdBy\": \"string\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/qs-demo/quote/v1/quotes/filter",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"qs-demo",
+								"quote",
+								"v1",
+								"quotes",
+								"filter"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get quote request details",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept-encoding": true,
+							"accept": true,
+							"user-agent": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/qs-demo/quote/v1/quotes/:quoteRequestId",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"qs-demo",
+								"quote",
+								"v1",
+								"quotes",
+								":quoteRequestId"
+							],
+							"variable": [
+								{
+									"key": "quoteRequestId",
+									"value": "*** Type quoteRequestId ***"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get quote attachment",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept-encoding": true,
+							"accept": true,
+							"user-agent": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/qs-demo/quote/v1/quotes/:quoteRequestId/attachments/:attachmentId",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"qs-demo",
+								"quote",
+								"v1",
+								"quotes",
+								":quoteRequestId",
+								"attachments",
+								":attachmentId"
+							],
+							"variable": [
+								{
+									"key": "quoteRequestId",
+									"value": "*** Type quoteRequestId ***"
+								},
+								{
+									"key": "attachmentId",
+									"value": "*** Type attachmentId ***"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel quote",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/qs-demo/quote/v1/quotes/:quoteRequestId/cancel",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"qs-demo",
+								"quote",
+								"v1",
+								"quotes",
+								":quoteRequestId",
+								"cancel"
+							],
+							"variable": [
+								{
+									"key": "quoteRequestId",
+									"value": "*** Type quoteRequestId ***"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "This folder contains endpoints to create, retrieve, filter, and cancel quote requests for DSV shipments.  \n  \nUse these APIs to automate quote submissions, track their status, and fetch related attachments during the quoting process."
+		},
+		{
+			"name": "Webhook v2 - get notification for your Quotes",
+			"item": [
+				{
+					"name": "Subscribe",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "*** Type your key ***",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"subscriptionEvent\": \"QuoteSubmitted\",\r\n  \"pushUrl\": \"https://webhook.site/d0d038d3-fed9-426a-aeb5-7eb5c2ec0894\",\r\n  \"authenticationData\": {\r\n    \"type\": \"oauth\",\r\n    \"OAuth\": {\r\n          \"tokenGenerationUrl\": \"https://webhook.site/98489330-21f0-44d2-aa05-069f06f00dee\",\r\n          \"accessTokenRequest\": {\r\n            \"headers\": [\r\n              { \"name\": \"Header1\", \"value\": \"Value1\" }\r\n            ],\r\n            \"body\": {\r\n              \"formUrlEncodedValues\": [\r\n                { \"name\": \"example_client_id\", \"Value\": \"client_id\" },\r\n                { \"name\": \"example_client_secret\", \"Value\": \"client_secret\"},\r\n                { \"name\": \"example\", \"Value\": \"client_credentials\" }\r\n              ]\r\n            }\r\n          },\r\n          \"refreshTokenRequest\": {\r\n            \"headers\": [\r\n              { \"name\": \"additional_header\", \"value\": \"additional_header_value\" }\r\n            ]\r\n          }\r\n        }\r\n  },\r\n  \"headers\": [\r\n    {\r\n      \"name\": \"TestHeader1\",\r\n      \"value\": \"TestHeaderValue\"\r\n    },\r\n    {\r\n      \"name\": \"TestHeader2\",\r\n      \"value\": \"TestHeaderValue1\"\r\n    }\r\n  ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/webhook/v1/subscriptions/subscribe",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"webhook",
+								"v1",
+								"subscriptions",
+								"subscribe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Unsubscribe",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "*** Type your key ***",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/webhook/v1/subscriptions/unsubscribe/:subscriptionEvent",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"webhook",
+								"v1",
+								"subscriptions",
+								"unsubscribe",
+								":subscriptionEvent"
+							],
+							"variable": [
+								{
+									"key": "subscriptionEvent",
+									"value": "QuoteSubmitted",
+									"description": "Possible values are: QuoteRequestCreated, QuoteSubmitted,QuoteStatusChanged,\nQuoteExpiringTomorrow, Invoice, ShipmentDeviceReading ShipmentDeliveryReceipt\n"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get the list of subscriptions",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "*** Type your key ***",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/webhook/v1/subscriptions",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"webhook",
+								"v1",
+								"subscriptions"
+							],
+							"query": [
+								{
+									"key": "",
+									"value": "",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "This folder contains webhook subscription APIs required to receive real-time notifications for quote-related events, such as `QuoteRequestCreated`, `QuoteSubmitted`, `QuoteStatusChanged`, and `QuoteExpiringTomorrow`. Webhook integration is essential for staying updated on quote activity, as the Quote API relies on push-based updates rather than polling."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

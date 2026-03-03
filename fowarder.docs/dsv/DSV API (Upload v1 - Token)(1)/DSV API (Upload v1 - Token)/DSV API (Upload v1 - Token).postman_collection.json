@@ -1,0 +1,320 @@
+{
+	"info": {
+		"_postman_id": "6b1a7c90-afc3-4683-b2c7-a07fbe8d964e",
+		"name": "DSV API (Upload v1 - samples with Bearer Token)",
+		"description": "Upload documents to your bookings and shipments moved by DSV. Supported transport modes: Air, Sea, Road (EU), Rail and XPress.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37456261"
+	},
+	"item": [
+		{
+			"name": "Fetch the Access Token",
+			"item": [
+				{
+					"name": "Demo-Access_token_with_grant-type-password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "client_credentials",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "",
+									"description": "myDSV username",
+									"type": "text"
+								},
+								{
+									"key": "client_secret",
+									"value": "",
+									"description": "myDSV password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Demo-Access_token_with_grant-type-refresh-token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "refresh_token",
+									"type": "text"
+								},
+								{
+									"key": "refresh_token",
+									"value": "{{refresh_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Upload (samples)",
+			"item": [
+				{
+					"name": "Shipment documents by DSV Shipment ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/upload/v1/shipments/tmsId/:type/:tmsId",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"upload",
+								"v1",
+								"shipments",
+								"tmsId",
+								":type",
+								":tmsId"
+							],
+							"variable": [
+								{
+									"key": "type",
+									"value": "<Provide document type>"
+								},
+								{
+									"key": "tmsId",
+									"value": "<Provide the DSV Shipment Id>"
+								}
+							]
+						},
+						"description": "Retrieve detailed shipment data for a specific shipment by searching the DSV booking ID received from API booking or bookings submitted via myDSV."
+					},
+					"response": []
+				},
+				{
+					"name": "Shipment documents by DSV Booking ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/upload/v1/shipments/bookingId/:type/:bookingId",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"upload",
+								"v1",
+								"shipments",
+								"bookingId",
+								":type",
+								":bookingId"
+							],
+							"variable": [
+								{
+									"key": "type",
+									"value": ">>> Provide document type <<<"
+								},
+								{
+									"key": "bookingId",
+									"value": ">>> Provide the DSV Booking Id <<<"
+								}
+							]
+						},
+						"description": "Retrieve detailed shipment data for a specific shipment by searching the DSV booking ID received from API booking or bookings submitted via myDSV."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

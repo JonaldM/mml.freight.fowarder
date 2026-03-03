@@ -1,0 +1,535 @@
+{
+	"info": {
+		"_postman_id": "0dd4c298-e2a6-4c95-8ac7-ba243e49f897",
+		"name": "DSV API (Invoice v1 - samples with Bearer Token)",
+		"description": "Submit request for invoice details to DSV via the invoice API. Supported transport modes: Air, Sea and Rail.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37456261"
+	},
+	"item": [
+		{
+			"name": "Fetch the Access Token",
+			"item": [
+				{
+					"name": "Demo-Access_token_with_grant-type-password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "client_credentials",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "",
+									"description": "myDSV username",
+									"type": "text"
+								},
+								{
+									"key": "client_secret",
+									"value": "",
+									"description": "myDSV password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Demo-Access_token_with_grant-type-refresh-token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "refresh_token",
+									"type": "text"
+								},
+								{
+									"key": "refresh_token",
+									"value": "{{refresh_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Invoice (samples)",
+			"item": [
+				{
+					"name": "Get invoices based on the filters",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"countryCode\": \"\",\r\n    \"transportMode\": \"\",\r\n    \"mdm\": \"\",\r\n    \"invoiceStartDateFilter\": \"2023-10-17\",\r\n    \"invoiceEndDateFilter\": \"\",\r\n    \"invoiceDueDateStartFilter\": \"\",\r\n    \"invoiceDueDateEndFilter\": \"\",\r\n    \"pageSize\": \"10\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/invoice/v1/invoices",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"invoice",
+								"v1",
+								"invoices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get invoice by invoice id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/invoice/v1/invoices/:invoiceId",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"invoice",
+								"v1",
+								"invoices",
+								":invoiceId"
+							],
+							"variable": [
+								{
+									"key": "invoiceId",
+									"value": "***Add DSV Invoice Id***"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get invoice by reference number",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/invoice/v1/invoices/referenceNumbers/:referenceNumber",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"invoice",
+								"v1",
+								"invoices",
+								"referenceNumbers",
+								":referenceNumber"
+							],
+							"variable": [
+								{
+									"key": "referenceNumber",
+									"value": "***Add Reference Number***"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get invoice by shipment id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/invoice/v1/invoices/shipments/:shipmentId",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"invoice",
+								"v1",
+								"invoices",
+								"shipments",
+								":shipmentId"
+							],
+							"variable": [
+								{
+									"key": "shipmentId",
+									"value": "***Add DSV Shipment Id***"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get invoice pdf document by invoice id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/invoice/v1/invoices/pdf/:invoiceId",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"invoice",
+								"v1",
+								"invoices",
+								"pdf",
+								":invoiceId"
+							],
+							"variable": [
+								{
+									"key": "invoiceId",
+									"value": "***Add DSV Invoice Id***"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Subscribe to invoice changes",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"pushUrl\": \"http://localhost:20846/WeatherForecast\",\r\n  \"authenticationData\": {\r\n    \"type\": \"basic \",\r\n    \"username\": \"test-user\",\r\n    \"password\": \"test-password\"\r\n  },\r\n  \"headers\": [\r\n    {\r\n      \"name\": \"TestHeader\",\r\n      \"value\": null\r\n    }\r\n  ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/invoice/v1/invoices/subscribe",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"invoice",
+								"v1",
+								"invoices",
+								"subscribe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Unsubscribe subcription",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/invoice/v1/invoices/unsubscribe",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"invoice",
+								"v1",
+								"invoices",
+								"unsubscribe"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "host",
+			"value": "https://api.dsv.com/my/invoice/v1",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

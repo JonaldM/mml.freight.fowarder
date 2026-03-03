@@ -1,0 +1,329 @@
+{
+	"info": {
+		"_postman_id": "c41fdf52-1f03-4ad6-9226-aa24dcefd21e",
+		"name": "DSV API (Visibility v1 - samples with Bearer Token)",
+		"description": "Visibility live tracking",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37456261"
+	},
+	"item": [
+		{
+			"name": "Fetch the Access Token",
+			"item": [
+				{
+					"name": "Demo-Access_token_with_grant-type-password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "client_credentials",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "",
+									"description": "myDSV username",
+									"type": "text"
+								},
+								{
+									"key": "client_secret",
+									"value": "",
+									"description": "myDSV password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Demo-Access_token_with_grant-type-refresh-token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "refresh_token",
+									"type": "text"
+								},
+								{
+									"key": "refresh_token",
+									"value": "{{refresh_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Visibility (sample)",
+			"item": [
+				{
+					"name": "Get device readings by search filter",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"shipmentId\": \"\",\r\n  \"measuredAtStartDateTime\": \"2023-01-01\",\r\n  \"measuredAtEndDateTime\": \"2023-09-22\",\r\n  \"measuredAtPreDefinedRange\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/visibility/v1/shipments/deviceReadings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"visibility",
+								"v1",
+								"shipments",
+								"deviceReadings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Subscribe to get shipment device reading/delivery receipt",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"subscriptionEvent\": \"ShipmentDeliveryReceipt\",\r\n  \"pushUrl\": \"http://localhost:20846/WeatherForecast\",\r\n  \"authenticationData\": {\r\n    \"type\": \"basic \",\r\n    \"username\": \"test-user\",\r\n    \"password\": \"test-password\"\r\n  },\r\n  \"headers\": [\r\n    {\r\n      \"name\": \"TestHeader\",\r\n      \"value\": \"TestHeaderValue\"\r\n    },\r\n    {\r\n      \"name\": \"TestHeader1\",\r\n      \"value\": \"TestHeaderValue1\"\r\n    }\r\n  ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/visibility/v1/shipments/subscribe",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"visibility",
+								"v1",
+								"shipments",
+								"subscribe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Unsubscribe subscription by providing subscription event name",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/visibility/v1/shipments/unsubscribe/:subscriptionEvent",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"visibility",
+								"v1",
+								"shipments",
+								"unsubscribe",
+								":subscriptionEvent"
+							],
+							"variable": [
+								{
+									"key": "subscriptionEvent",
+									"value": "",
+									"description": "Possible values are: ShipmentDeviceReading ShipmentDeliveryReceipt"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

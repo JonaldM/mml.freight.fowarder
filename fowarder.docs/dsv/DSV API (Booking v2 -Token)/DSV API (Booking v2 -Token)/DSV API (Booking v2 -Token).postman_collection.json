@@ -1,0 +1,761 @@
+{
+	"info": {
+		"_postman_id": "afb9d8e3-10db-4587-8082-87472e748b4f",
+		"name": "DSV API (Booking v2 - samples with Bearer Token)",
+		"description": "Submit bookings to DSV via the Booking API. Supported transport modes: Air, Sea, Road (EU) and Rail.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37456261"
+	},
+	"item": [
+		{
+			"name": "Fetch the Access Token",
+			"item": [
+				{
+					"name": "Demo-Access_token_with_grant-type-password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "client_credentials",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "",
+									"description": "myDSV username",
+									"type": "text"
+								},
+								{
+									"key": "client_secret",
+									"value": "",
+									"description": "myDSV password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Demo-Access_token_with_grant-type-refresh-token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"pm.collectionVariables.set('refresh_token', jsonData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "**Type your key**",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "DSV-Subscription-Key",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "refresh_token",
+									"type": "text"
+								},
+								{
+									"key": "refresh_token",
+									"value": "{{refresh_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/oauth/v1/token",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"oauth",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Booking - basic (samples)",
+			"item": [
+				{
+					"name": "Road (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Road\",\n        \"dropOff\": false\n    },\n    \"services\": {\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        }\n    },\n    \"incoterms\": {\n        \"code\": \"EXW\",\n        \"location\": \"TestCityPickup1\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"08:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"freightPayer\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": 1000,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"palletSpace\": null,\n            \"loadingMeters\": 2,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\"\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1200,\n            \"netWeight\": 800,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"palletSpace\": null,\n            \"loadingMeters\": 1,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\"\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Air (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept-encoding": true,
+							"accept": true,
+							"user-agent": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Air\",\n        \"dropOff\": false\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        },\n        \"airlineExpress\": true\n    },\n    \"incoterms\": {\n        \"code\": \"EXW\",\n        \"location\": \"TestCityPickup1\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2024-09-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2024-09-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery instruction\"\n    ],\n    \"additionalInstructions\": [\n        \"backdoor\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"eori\": \"number\",\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"shippingMarksList\": [\"Test shipping marks 1\",\"Test shipping marks 2\"],\n            \"harmonizedCode\": [\n                123456\n            ]\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CAS\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 60,\n            \"width\": 50,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.18,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"harmonizedCode\": [\n                123456\n            ]\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sea - LCL (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Sea\",\n        \"dropOff\": false,\n        \"billOfLading\": \"Express\",\n        \"containerMode\": \"LCL\"\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        }\n    },\n    \"incoterms\": {\n        \"code\": \"FOB\",\n        \"location\": \"Copenhagen\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"harmonizedCode\": [\n                123456\n            ]\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CAS\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"harmonizedCode\": [\n                123456\n            ]\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sea - FCL (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Sea\",\n        \"dropOff\": false,\n        \"billOfLading\": \"Original\",\n        \"containerMode\": \"FCL\",\n        \"containers\": [\n            {\n                \"ref\": \"TestContainerNumber1\",\n                \"type\": \"20DC\"\n            },\n            {\n                \"ref\": \"TestContainerNumber2\",\n                \"type\": \"40DC\"\n            }\n        ]\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        }\n    },\n    \"incoterms\": {\n        \"code\": \"FOB\",\n        \"location\": \"Copenhagen\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"containerNo\": 0\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CAS\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"containerNo\": 1\n        },\n        {\n            \"quantity\": 3,\n            \"packageType\": \"EUR\",\n            \"totalWeight\": 900,\n            \"netWeight\": null,\n            \"length\": 120,\n            \"height\": 120,\n            \"width\": 80,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 3.456,\n            \"description\": \"Test goods 3\",\n            \"shippingMarks\": \"Test shipping marks 3\",\n            \"containerNo\": 1\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rail (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Rail\",\n        \"dropOff\": false,\n        \"containerMode\": \"LCL\"\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        }\n    },\n    \"incoterms\": {\n        \"code\": \"EXW\",\n        \"location\": \"TestCityPickup1\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup Instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery Instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\"\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CAS\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\"\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Booking - Dangerous goods and temparature controlled (samples)",
+			"item": [
+				{
+					"name": "Road - Haz + Temp. (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"connection": true,
+							"accept-encoding": true,
+							"accept": true,
+							"user-agent": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Road\",\n        \"dropOff\": false\n    },\n    \"services\": {\n        \"thermotransport\": true,\n        \"dangerousGoods\": true,\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        }\n    },\n    \"incoterms\": {\n        \"code\": \"EXW\",\n        \"location\": \"TestCityPickup1\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup Instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery Instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"freightPayer\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"packages\": [\n        {\n            \"quantity\": 2,\n            \"packageType\": \"EUR\",\n            \"totalWeight\": 1900,\n            \"netWeight\": 1500,\n            \"length\": 120,\n            \"height\": 110,\n            \"width\": 80,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 2.112,\n            \"loadingMeters\": 0.8,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"isDangerous\": true,\n            \"dangerousGoods\": [\n                {\n                    \"className\": \"9\",\n                    \"subRisk\": \"9A\",\n                    \"flashPoint\": null,\n                    \"limitedQuantity\": true,\n                    \"marinePollutant\": true,\n                    \"packingGroup\": \"\",\n                    \"properShippingName\": \"LITHIUM ION BATTERIES CONTAINED IN EQUIPMENT\",\n                    \"technicalName\": null,\n                    \"technicalNameNational\": null,\n                    \"temperatureMin\": null,\n                    \"temperatureMax\": null,\n                    \"type\": \"ADR\",\n                    \"unCode\": \"3481\",\n                    \"tunnelCode\": \"E\",\n                    \"packagesCount\": 2,\n                    \"packingKind\": \"BOX\",\n                    \"netWeight\": 800,\n                    \"grossWeight\": 1000\n                },\n                {\n                    \"className\": \"9\",\n                    \"subRisk\": \"Env Haz\",\n                    \"flashPoint\": null,\n                    \"limitedQuantity\": true,\n                    \"marinePollutant\": true,\n                    \"packingGroup\": \"III\",\n                    \"properShippingName\": \"ENVIRONMENTALLY HAZARDOUS SUBSTANCE, LIQUID, N.O.S.\",\n                    \"technicalName\": \"Test technical name international\",\n                    \"technicalNameNational\": \"Test technical name national\",\n                    \"temperatureMin\": null,\n                    \"temperatureMax\": null,\n                    \"type\": \"ADR\",\n                    \"unCode\": \"3082\",\n                    \"tunnelCode\": \"-\",\n                    \"packagesCount\": 3,\n                    \"packingKind\": \"DRUM\",\n                    \"netWeight\": 700,\n                    \"grossWeight\": 900\n                }\n            ]\n        },\n        {\n            \"quantity\": 3,\n            \"packageType\": \"CTN\",\n            \"totalWeight\": 1500,\n            \"netWeight\": 800,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.18,\n            \"loadingMeters\": 0.5,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"temperatureMin\": -22,\n            \"temperatureMax\": -18,\n            \"temperatureControlled\": true,\n            \"isDangerous\": false\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Air - Haz + Temp. (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept-encoding": true,
+							"accept": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Air\",\n        \"dropOff\": false\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        },\n        \"airlineExpress\": true,\n        \"thermotransport\": true,\n        \"dangerousGoods\": true\n    },\n    \"incoterms\": {\n        \"code\": \"EXW\",\n        \"location\": \"TestCityPickup1\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2024-08-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"13:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2024-08-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup Instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery Instruction\"\n    ],\n    \"additionalInstructions\": [\n        \"backdoor\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"eori\": \"number\",\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null,\n                \"approvedShipper\": \"test_shipper\"\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"shippingMarksList\": [\n                \"Test shipping marks 1\",\n                \"Test shipping marks 2\"\n            ],\n            \"harmonizedCode\": [\n                123456\n            ],\n            \"isDangerous\": true,\n            \"cargoAircraftOnly\": true\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CTN\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"harmonizedCode\": [\n                123456\n            ],\n            \"temperatureMin\": -22,\n            \"temperatureMax\": -18,\n            \"battery\": {\n                \"batteryType\": \"DRY\",\n                \"batteryPackageType\": \"IN_EQUIPMENT\"\n            },\n            \"temperatureControlled\": true\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sea - LCL - Haz + Temp. (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Sea\",\n        \"dropOff\": false,\n        \"billOfLading\": \"Express\",\n        \"containerMode\": \"LCL\"\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        },\n        \"thermotransport\": true,\n        \"dangerousGoods\": true\n    },\n    \"incoterms\": {\n        \"code\": \"FOB\",\n        \"location\": \"Copenhagen\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"harmonizedCode\": [\n                123456\n            ],\n            \"isDangerous\": true\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CAS\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"harmonizedCode\": [\n                123456\n            ],\n            \"temperatureMin\": -22,\n            \"temperatureMax\": -18,\n            \"temperatureControlled\": true\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sea - FCL - Haz + Temp. (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"content-type": true,
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Sea\",\n        \"billOfLading\": \"Original\",\n        \"dropOff\": false,\n        \"containerMode\": \"FCL\",\n        \"containers\": [\n            {\n                \"ref\": \"TestContainerNumber1\",\n                \"type\": \"20DC\"\n            },\n            {\n                \"ref\": \"TestContainerNumber2\",\n                \"type\": \"20RE\",\n                \"genset\": true,\n                \"temp\": -20\n            }\n        ]\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        },\n        \"thermotransport\": true,\n        \"dangerousGoods\": true\n    },\n    \"incoterms\": {\n        \"code\": \"FOB\",\n        \"location\": \"Copenhagen\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"containerNo\": 0,\n            \"isDangerous\": true\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CAS\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"temperatureMin\": -22,\n            \"temperatureMax\": -18,\n            \"containerNo\": 1,\n            \"temperatureControlled\": true\n        },\n        {\n            \"quantity\": 3,\n            \"packageType\": \"EUR\",\n            \"totalWeight\": 1300,\n            \"netWeight\": null,\n            \"length\": 120,\n            \"height\": 110,\n            \"width\": 80,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 3.168,\n            \"description\": \"Test goods 3\",\n            \"shippingMarks\": \"Test shipping marks 3\",\n            \"temperatureMin\": -22,\n            \"temperatureMax\": -18,\n            \"containerNo\": 1,\n            \"temperatureControlled\": true\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rail - Haz + Temp. (sample)",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"content-type": true,
+							"user-agent": true,
+							"accept": true,
+							"accept-encoding": true,
+							"connection": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "DSV-Subscription-Key",
+								"value": "**Type your key**",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autobook\": true,\n    \"product\": {\n        \"name\": \"Rail\",\n        \"dropOff\": false,\n        \"containerMode\": \"LCL\"\n    },\n    \"services\": {\n        \"serviceLevel\": \"STD\",\n        \"insurance\": {\n            \"amount\": {\n                \"value\": 100,\n                \"currency\": \"DKK\"\n            },\n            \"category\": \"STD\"\n        },\n        \"thermotransport\": true,\n        \"dangerousGoods\": true\n    },\n    \"incoterms\": {\n        \"code\": \"EXW\",\n        \"location\": \"TestCityPickup1\"\n    },\n    \"pickupTime\": {\n        \"date\": \"2021-03-15\",\n        \"start\": \"09:05:00\",\n        \"end\": \"10:15:00\"\n    },\n    \"deliveryTime\": {\n        \"date\": \"2021-03-19\",\n        \"start\": \"13:05:00\",\n        \"end\": \"14:15:00\"\n    },\n    \"pickupInstructions\": [\n        \"Test Pickup Instruction\"\n    ],\n    \"deliveryInstructions\": [\n        \"Test Delivery Instruction\"\n    ],\n    \"parties\": {\n        \"sender\": {\n            \"address\": {\n                \"companyName\": \"Test-Sender1\",\n                \"addressId\": \"Test1\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test Name\",\n                \"email\": \"testemail@testemail.com\",\n                \"telephone\": \"+4512345678\"\n            }\n        },\n        \"receiver\": {\n            \"address\": {\n                \"companyName\": \"Test-Receiver1\",\n                \"addressId\": \"Test2\",\n                \"addressLine1\": \"Test address 1\",\n                \"addressLine2\": \"Test address 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity2\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"000000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"Test name 1\",\n                \"email\": \"testemail1@emailtest.com\",\n                \"telephone\": \"+11234567890\"\n            }\n        },\n        \"delivery\": {\n            \"address\": {\n                \"companyName\": \"Test-Delivery1\",\n                \"addressId\": \"TestDelivery1\",\n                \"addressLine1\": \"Test address delivery 1\",\n                \"addressLine2\": \"Test address delivery 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityDelivery1\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail3@emailtest.com\",\n                \"telephone\": \"+112345678901\"\n            }\n        },\n        \"pickup\": {\n            \"address\": {\n                \"companyName\": \"Test-Pickup1\",\n                \"addressId\": \"TestPickup1\",\n                \"addressLine1\": \"Test address pickup 1\",\n                \"addressLine2\": \"Test address pickup 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCityPickup1\",\n                \"countryCode\": \"DK\",\n                \"state\": null,\n                \"zipCode\": \"0000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": {\n                \"name\": \"TestName\",\n                \"email\": \"testemail2@emailtest.com\",\n                \"telephone\": \"+451234567890\"\n            }\n        },\n        \"notify\": {\n            \"address\": {\n                \"companyName\": \"Test-Notify1\",\n                \"addressId\": \"TestNotify1\",\n                \"addressLine1\": \"Test Address Notify 1\",\n                \"addressLine2\": \"Test Address Notify 1.2\",\n                \"addressLine3\": null,\n                \"city\": \"TestCity3\",\n                \"countryCode\": \"US\",\n                \"state\": \"NY\",\n                \"zipCode\": \"00000\",\n                \"instructions\": null,\n                \"mdm\": null\n            },\n            \"contact\": null\n        },\n        \"bookingParty\": {\n            \"address\": {\n                \"mdm\": \"***Type MDM***\"\n            }\n        }\n    },\n    \"detailedGoodsDescription\": [\n        \"Test detailed goods description\"\n    ],\n    \"packages\": [\n        {\n            \"quantity\": 1,\n            \"packageType\": \"BAG\",\n            \"totalWeight\": 1500,\n            \"netWeight\": null,\n            \"length\": 60,\n            \"height\": 80,\n            \"width\": 70,\n            \"stackable\": \"STACKABLE\",\n            \"totalVolume\": 0.336,\n            \"description\": \"Test goods 1\",\n            \"shippingMarks\": \"Test shipping marks 1\",\n            \"isDangerous\": true\n        },\n        {\n            \"quantity\": 2,\n            \"packageType\": \"CAS\",\n            \"totalWeight\": 800,\n            \"netWeight\": null,\n            \"length\": 30,\n            \"height\": 50,\n            \"width\": 40,\n            \"stackable\": \"NO\",\n            \"totalVolume\": 0.12,\n            \"description\": \"Test goods 2\",\n            \"shippingMarks\": \"Test shipping marks 2\",\n            \"temperatureMin\": -22,\n            \"temperatureMax\": -18,\n            \"temperatureControlled\": true\n        }\n    ],\n    \"references\": [\n        {\n            \"value\": \"TestReference1\",\n            \"type\": \"INVOICING_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference2\",\n            \"type\": \"ORDER_NUMBER\"\n        },\n        {\n            \"value\": \"TestReference3\",\n            \"type\": \"CONSIGNEE_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference4\",\n            \"type\": \"SHIPPER_REFERENCE\"\n        },\n        {\n            \"value\": \"TestReference5\",\n            \"type\": \"OTHER\"\n        }\n    ],\n    \"units\": {\n        \"dimension\": \"CM\",\n        \"weight\": \"KG\",\n        \"volume\": \"M3\",\n        \"loadingSpace\": \"LM\",\n        \"temperature\": \"C\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.dsv.com/my-demo/booking/v2/bookings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"dsv",
+								"com"
+							],
+							"path": [
+								"my-demo",
+								"booking",
+								"v2",
+								"bookings"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
