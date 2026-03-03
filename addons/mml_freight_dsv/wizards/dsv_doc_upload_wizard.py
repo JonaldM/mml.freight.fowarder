@@ -80,11 +80,7 @@ class FreightDsvDocUploadWizard(models.TransientModel):
     @api.depends('po_id')
     def _compute_booking(self):
         for w in self:
-            w.booking_id = self.env['freight.booking'].search([
-                ('po_ids', 'in', w.po_id.id),
-                ('carrier_id.delivery_type', 'in', ('dsv_generic', 'dsv_xpress')),
-                ('state', 'not in', ('delivered', 'cancelled', 'received')),
-            ], limit=1)
+            w.booking_id = w.po_id.x_dsv_booking_id
 
     @api.model
     def default_get(self, fields_list):

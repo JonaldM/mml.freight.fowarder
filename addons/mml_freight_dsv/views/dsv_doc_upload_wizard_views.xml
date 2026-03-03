@@ -11,7 +11,7 @@
                         <field name="booking_id" readonly="1"/>
                     </group>
                     <field name="line_ids">
-                        <list editable="bottom">
+                        <list editable="bottom" decoration-warning="size_warning">
                             <field name="include" string="Upload"/>
                             <field name="filename" readonly="1"/>
                             <field name="dsv_type"/>

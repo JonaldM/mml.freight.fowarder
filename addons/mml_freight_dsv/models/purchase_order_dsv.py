@@ -11,7 +11,7 @@ class PurchaseOrderDsv(models.Model):
         store=False,
     )
 
-    @api.depends('name')  # recomputes on save; good enough for a wizard trigger
+    @api.depends()  # Recomputes on record load only. Booking visibility refreshes on PO reload.
     def _compute_dsv_booking(self):
         for po in self:
             po.x_dsv_booking_id = self.env['freight.booking'].search([
