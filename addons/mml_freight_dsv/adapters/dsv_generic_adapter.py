@@ -7,12 +7,22 @@ from odoo.addons.mml_freight_dsv.adapters.dsv_quote_builder import get_product_t
 
 _logger = logging.getLogger(__name__)
 
-# DSV API base URLs (production).
+# DSV API base URLs — environment-aware helpers.
 # Generic APIs (booking, tracking, labels, documents, invoice) use /my/ prefix.
 # Quote API uses its own /qs/ prefix.
 # Ref: https://developer.dsv.com/guide-mydsv (Endpoint Reference section)
-_DSV_GENERIC_BASE = 'https://api.dsv.com/my'
-_DSV_QUOTE_BASE   = 'https://api.dsv.com/qs'
+def _generic_base(carrier):
+    """DSV Generic API base URL — /my-demo for demo, /my for production."""
+    if getattr(carrier, 'x_dsv_environment', 'production') == 'demo':
+        return 'https://api.dsv.com/my-demo'
+    return 'https://api.dsv.com/my'
+
+
+def _quote_base(carrier):
+    """DSV Quote API base URL — /qs-demo for demo, /qs for production."""
+    if getattr(carrier, 'x_dsv_environment', 'production') == 'demo':
+        return 'https://api.dsv.com/qs-demo'
+    return 'https://api.dsv.com/qs'
 
 _DSV_EVENT_STATE_MAP = {
     'BOOKING_CONFIRMED': 'confirmed',
@@ -83,7 +93,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         results = []
         for product_type in prod_types:
             payload = build_quote_payload(tender, product_type, mdm)
-            quote_url = f'{_DSV_QUOTE_BASE}/quote/v1/quotes'
+            quote_url = f'{_quote_base(self.carrier)}/quote/v1/quotes'
             try:
                 resp = self._post_with_retry(quote_url, payload, token, service='quote')
             except Exception as e:
@@ -135,7 +145,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         except DsvAuthError as e:
             raise UserError(f'DSV auth failed: {e}') from e
         payload = build_booking_payload(tender, selected_quote, self.carrier)
-        booking_url = f'{_DSV_GENERIC_BASE}/booking/v2/bookings'
+        booking_url = f'{_generic_base(self.carrier)}/booking/v2/bookings'
         try:
             resp = self._post_with_retry(booking_url, payload, token, service='booking')
         except Exception as e:
@@ -166,7 +176,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         except DsvAuthError as e:
             _logger.warning('DSV cancel booking %s: auth error, skipping cancel: %s', bk_id, e)
             return
-        url = f'{_DSV_GENERIC_BASE}/booking/v2/bookings/{bk_id}'
+        url = f'{_generic_base(self.carrier)}/booking/v2/bookings/{bk_id}'
         try:
             resp = requests.delete(url, headers=self._headers(token, 'booking'), timeout=30)
         except Exception as e:
@@ -192,7 +202,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             token = get_token(self.carrier)
         except DsvAuthError as e:
             raise UserError(f'DSV auth failed: {e}') from e
-        url = f'{_DSV_GENERIC_BASE}/booking/v2/bookings/{bk_id}/confirm'
+        url = f'{_generic_base(self.carrier)}/booking/v2/bookings/{bk_id}/confirm'
         try:
             resp = self._post_with_retry(url, {}, token, service='booking')
         except Exception as e:
@@ -229,7 +239,7 @@ class DsvGenericAdapter(FreightAdapterBase):
             return []
         # Tracking API v2: GET /my/tracking/v2/shipments/tmsId/{shipment_id}
         # v2 replaces the deprecated v1 endpoint; returns full shipment detail with events array.
-        url = f'{_DSV_GENERIC_BASE}/tracking/v2/shipments/tmsId/{shipment_id}'
+        url = f'{_generic_base(self.carrier)}/tracking/v2/shipments/tmsId/{shipment_id}'
         try:
             resp = requests.get(url, headers=self._headers(token, 'visibility'), timeout=30)
         except Exception as e:
@@ -269,7 +279,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         except DsvAuthError as e:
             _logger.warning('DSV label fetch auth failed for %s: %s', booking.name, e)
             return None
-        url = f'{_DSV_GENERIC_BASE}/printing/v1/labels/{bk_id}'
+        url = f'{_generic_base(self.carrier)}/printing/v1/labels/{bk_id}'
         headers = self._headers(token, 'doc_download')
         headers['Accept'] = 'application/pdf'
         try:
@@ -301,7 +311,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         except DsvAuthError as e:
             _logger.warning('DSV documents auth failed for %s: %s', booking.name, e)
             return []
-        url = f'{_DSV_GENERIC_BASE}/download/v1/shipments/bookingId/{bk_id}/documents'
+        url = f'{_generic_base(self.carrier)}/download/v1/shipments/bookingId/{bk_id}/documents'
         try:
             resp = requests.get(url, headers=self._headers(token, 'doc_download'), timeout=30)
         except Exception as e:
@@ -352,7 +362,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         except DsvAuthError as e:
             _logger.warning('DSV invoice auth failed for %s: %s', booking.name, e)
             return None
-        url = f'{_DSV_GENERIC_BASE}/invoice/v1/invoices/shipments/{shipment_id}'
+        url = f'{_generic_base(self.carrier)}/invoice/v1/invoices/shipments/{shipment_id}'
         try:
             resp = requests.get(url, headers=self._headers(token, 'invoicing'), timeout=30)
         except Exception as e:
@@ -395,7 +405,7 @@ class DsvGenericAdapter(FreightAdapterBase):
         except DsvAuthError as e:
             _logger.warning('DSV upload_document auth failed for %s: %s', booking.name, e)
             return None
-        url = f'{_DSV_GENERIC_BASE}/upload/v1/shipments/{bk_id}/documents'
+        url = f'{_generic_base(self.carrier)}/upload/v1/shipments/{bk_id}/documents'
         headers = {
             'Authorization': f'Bearer {token}',
             'DSV-Subscription-Key': self.carrier.dsv_subkey('doc_upload'),

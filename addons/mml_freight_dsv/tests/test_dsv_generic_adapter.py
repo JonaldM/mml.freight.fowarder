@@ -161,3 +161,30 @@ class TestDsvGenericAdapter(TransactionCase):
             with patch('requests.post', return_value=_resp(422, {'error': 'invalid payload'})):
                 with self.assertRaises(UserError):
                     self._adapter().create_booking(self.tender, self._quote())
+
+
+import unittest
+
+
+class TestDsvBaseUrls(unittest.TestCase):
+
+    def _carrier(self, env):
+        m = MagicMock()
+        m.x_dsv_environment = env
+        return m
+
+    def test_generic_base_demo(self):
+        from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import _generic_base
+        self.assertEqual(_generic_base(self._carrier('demo')), 'https://api.dsv.com/my-demo')
+
+    def test_generic_base_production(self):
+        from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import _generic_base
+        self.assertEqual(_generic_base(self._carrier('production')), 'https://api.dsv.com/my')
+
+    def test_quote_base_demo(self):
+        from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import _quote_base
+        self.assertEqual(_quote_base(self._carrier('demo')), 'https://api.dsv.com/qs-demo')
+
+    def test_quote_base_production(self):
+        from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import _quote_base
+        self.assertEqual(_quote_base(self._carrier('production')), 'https://api.dsv.com/qs')
