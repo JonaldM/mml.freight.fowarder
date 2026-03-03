@@ -98,3 +98,8 @@ class TestDsvOauthUrls(unittest.TestCase):
         url = _oauth_url(self._carrier('production'))
         self.assertIn('/my/', url)
         self.assertNotIn('demo', url)
+
+    def test_unknown_env_falls_back_to_production(self):
+        url = _oauth_url(self._carrier('staging'))
+        self.assertIn('/my/', url)
+        self.assertNotIn('demo', url)

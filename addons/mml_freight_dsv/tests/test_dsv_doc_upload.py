@@ -130,7 +130,7 @@ class TestDsvDocUpload(TransactionCase):
                 self.booking, 'pi.pdf', b'bytes', 'PKL'
             )
         call_kwargs = mock_post.call_args[1]
-        self.assertNotIn('document_type', call_kwargs.get('data', {}))
+        self.assertNotIn('data', call_kwargs)
 
 
 class TestDetectDsvType(unittest.TestCase):

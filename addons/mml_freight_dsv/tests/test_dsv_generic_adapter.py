@@ -187,3 +187,11 @@ class TestDsvBaseUrls(unittest.TestCase):
     def test_quote_base_production(self):
         from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import _quote_base
         self.assertEqual(_quote_base(self._carrier('production')), 'https://api.dsv.com/qs')
+
+    def test_generic_base_unknown_env_falls_back_to_production(self):
+        from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import _generic_base
+        self.assertEqual(_generic_base(self._carrier('staging')), 'https://api.dsv.com/my')
+
+    def test_quote_base_unknown_env_falls_back_to_production(self):
+        from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import _quote_base
+        self.assertEqual(_quote_base(self._carrier('staging')), 'https://api.dsv.com/qs')
