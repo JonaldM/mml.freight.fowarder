@@ -109,3 +109,16 @@ class TestCarrierContract(TransactionCase):
         self._make_booking_for_contract(c, unit_quantity=20.0, state='confirmed')
         c.invalidate_recordset()
         self.assertAlmostEqual(c.utilization_pct, 100.0)
+
+    def test_upload_document_default_returns_none(self):
+        """Base adapter upload_document returns None (not supported by default)."""
+        from odoo.addons.mml_freight.adapters.base_adapter import FreightAdapterBase
+
+        class _StubAdapter(FreightAdapterBase):
+            def request_quote(self, tender): return []
+            def create_booking(self, tender, quote): return {}
+            def get_tracking(self, booking): return []
+
+        adapter = _StubAdapter(None, None)
+        result = adapter.upload_document(None, 'test.pdf', b'bytes', 'INV')
+        self.assertIsNone(result)

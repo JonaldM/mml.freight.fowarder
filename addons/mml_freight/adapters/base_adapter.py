@@ -59,6 +59,20 @@ class FreightAdapterBase(ABC):
         """
         return None
 
+    def upload_document(self, booking, filename, file_bytes, dsv_type):
+        """Upload a document to the carrier against a booking.
+
+        Args:
+            booking: freight.booking record
+            filename: original filename (str)
+            file_bytes: raw file content (bytes)
+            dsv_type: carrier document type code (e.g. INV, PKL, CUS, HAZ, GDS)
+
+        Returns:
+            carrier_upload_ref (str) on success, None if not supported or failed.
+        """
+        return None
+
     def cancel_booking(self, booking):
         """Cancel a booking with the carrier. Default is a no-op. Override where supported."""
         pass
