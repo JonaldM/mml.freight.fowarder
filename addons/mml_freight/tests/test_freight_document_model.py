@@ -29,7 +29,7 @@ class TestFreightDocumentModel(TransactionCase):
             'product_id': self.env['product.product'].create(
                 {'name': 'Test', 'type': 'service'}
             ).id,
-            'delivery_type': 'dsv_generic',
+            'delivery_type': 'fixed',
         })
         booking = self.env['freight.booking'].create({
             'carrier_id': carrier.id,
