@@ -25,7 +25,11 @@ class TestDsvLabel(TransactionCase):
             'product_id': cls.service_product.id,
             'delivery_type': 'dsv_generic',
             'x_dsv_environment': 'production',
-            'x_dsv_subscription_key': 'SUB-LABEL-001',
+            'x_dsv_subkey_doc_download_primary': 'SUB-DL-001',
+            'x_dsv_subkey_booking_primary': 'SUB-BK-001',
+            'x_dsv_subkey_quote_primary': 'SUB-QT-001',
+            'x_dsv_subkey_visibility_primary': 'SUB-VIS-001',
+            'x_dsv_subkey_invoicing_primary': 'SUB-INV-001',
         })
         supplier = cls.env['res.partner'].create({'name': 'DSV Label Supplier'})
         po = cls.env['purchase.order'].create({'partner_id': supplier.id})
