@@ -15,3 +15,5 @@ venv/
 *.swp
 *.swo
 .worktrees/
+secret.txt
+*.secret

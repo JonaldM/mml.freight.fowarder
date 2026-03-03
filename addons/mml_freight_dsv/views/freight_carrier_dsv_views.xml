@@ -10,30 +10,69 @@
             </field>
         </field>
     </record>
+
     <record id="view_freight_carrier_dsv_form" model="ir.ui.view">
         <field name="name">delivery.carrier.form.dsv</field>
         <field name="model">delivery.carrier</field>
         <field name="inherit_id" ref="mml_freight.view_freight_carrier_form"/>
         <field name="arch" type="xml">
             <xpath expr="//group[@name='freight_config']" position="after">
-                <group string="DSV Configuration" name="dsv_config" invisible="delivery_type not in ('dsv_generic', 'dsv_xpress')">
+
+                <!-- General DSV config -->
+                <group string="DSV Configuration" name="dsv_config"
+                       invisible="delivery_type not in ('dsv_generic', 'dsv_xpress')">
                     <field name="x_dsv_environment"/>
                     <field name="x_dsv_mdm"/>
                     <field name="x_dsv_product_name" invisible="delivery_type != 'dsv_generic'"/>
-                    <field name="x_dsv_subscription_key" password="True" invisible="delivery_type != 'dsv_generic'"/>
-                    <field name="x_dsv_client_id" invisible="delivery_type != 'dsv_generic'"/>
-                    <field name="x_dsv_client_secret" password="True" invisible="delivery_type != 'dsv_generic'"/>
-                    <field name="x_dsv_service_auth" password="True" invisible="delivery_type != 'dsv_xpress'"/>
-                    <field name="x_dsv_pat" password="True" invisible="delivery_type != 'dsv_xpress'"/>
-                    <field name="x_dsv_access_token" readonly="1" password="True"/>
-                    <field name="x_dsv_token_expiry" readonly="1"/>
+                    <field name="x_dsv_client_id"     invisible="delivery_type != 'dsv_generic'"/>
+                    <field name="x_dsv_client_secret" invisible="delivery_type != 'dsv_generic'" password="True"/>
+                    <field name="x_dsv_service_auth"  invisible="delivery_type != 'dsv_xpress'" password="True"/>
+                    <field name="x_dsv_pat"           invisible="delivery_type != 'dsv_xpress'" password="True"/>
+                    <field name="x_dsv_access_token"  readonly="1" password="True"/>
+                    <field name="x_dsv_token_expiry"  readonly="1"/>
                 </group>
+
+                <!-- APIM subscription keys — one per service, primary + secondary -->
+                <group string="DSV Subscription Keys" name="dsv_subkeys"
+                       invisible="delivery_type != 'dsv_generic'">
+                    <group string="Quote">
+                        <field name="x_dsv_subkey_quote_primary"   password="True" string="Primary"/>
+                        <field name="x_dsv_subkey_quote_secondary" password="True" string="Secondary"/>
+                    </group>
+                    <group string="Booking">
+                        <field name="x_dsv_subkey_booking_primary"   password="True" string="Primary"/>
+                        <field name="x_dsv_subkey_booking_secondary" password="True" string="Secondary"/>
+                    </group>
+                    <group string="Document Upload">
+                        <field name="x_dsv_subkey_doc_upload_primary"   password="True" string="Primary"/>
+                        <field name="x_dsv_subkey_doc_upload_secondary" password="True" string="Secondary"/>
+                    </group>
+                    <group string="Document Download">
+                        <field name="x_dsv_subkey_doc_download_primary"   password="True" string="Primary"/>
+                        <field name="x_dsv_subkey_doc_download_secondary" password="True" string="Secondary"/>
+                    </group>
+                    <group string="Visibility / Tracking">
+                        <field name="x_dsv_subkey_visibility_primary"   password="True" string="Primary"/>
+                        <field name="x_dsv_subkey_visibility_secondary" password="True" string="Secondary"/>
+                    </group>
+                    <group string="Invoicing">
+                        <field name="x_dsv_subkey_invoicing_primary"   password="True" string="Primary"/>
+                        <field name="x_dsv_subkey_invoicing_secondary" password="True" string="Secondary"/>
+                    </group>
+                    <group string="Webhook">
+                        <field name="x_dsv_subkey_webhook_primary"   password="True" string="Primary"/>
+                        <field name="x_dsv_subkey_webhook_secondary" password="True" string="Secondary"/>
+                    </group>
+                </group>
+
+                <!-- LCL/FCL thresholds -->
                 <group string="LCL/FCL Mode Thresholds (CBM)" name="dsv_lcl_fcl"
                        invisible="delivery_type != 'dsv_generic'">
-                    <field name="x_dsv_lcl_fcl_threshold" string="LCL→FCL Grey Zone starts at"/>
-                    <field name="x_dsv_fcl20_fcl40_threshold" string="FCL20→FCL40 Grey Zone starts at"/>
-                    <field name="x_dsv_fcl40_upper" string="FCL40 only above"/>
+                    <field name="x_dsv_lcl_fcl_threshold"      string="LCL→FCL Grey Zone starts at"/>
+                    <field name="x_dsv_fcl20_fcl40_threshold"  string="FCL20→FCL40 Grey Zone starts at"/>
+                    <field name="x_dsv_fcl40_upper"            string="FCL40 only above"/>
                 </group>
+
             </xpath>
         </field>
     </record>

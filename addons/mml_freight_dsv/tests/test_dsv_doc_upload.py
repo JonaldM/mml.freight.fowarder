@@ -1,4 +1,5 @@
 import base64
+import unittest
 from unittest.mock import patch, MagicMock
 from odoo.tests.common import TransactionCase
 from odoo.addons.mml_freight_dsv.adapters.dsv_generic_adapter import DsvGenericAdapter
@@ -108,7 +109,7 @@ class TestDsvDocUpload(TransactionCase):
         self.assertEqual(result, 'RETRY-REF')
 
 
-class TestDetectDsvType(TransactionCase):
+class TestDetectDsvType(unittest.TestCase):
 
     def test_pi_filename_detects_inv(self):
         self.assertEqual(detect_dsv_type('MML-PI-PO001.pdf'), 'INV')

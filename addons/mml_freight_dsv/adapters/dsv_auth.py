@@ -44,7 +44,7 @@ def refresh_token(carrier):
         resp = requests.post(
             _OAUTH_URL,
             headers={
-                'DSV-Subscription-Key': carrier.x_dsv_subscription_key or '',
+                'DSV-Subscription-Key': carrier.dsv_any_subkey(),
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             data={
