@@ -49,19 +49,22 @@ class KnWebhookController(http.Controller):
         except Exception:
             exists = False
 
-        if not exists:
-            return {'status': 'ok'}
+        environment = getattr(carrier, 'x_knplus_environment', 'sandbox') if exists else 'production'
 
-        environment = getattr(carrier, 'x_knplus_environment', 'sandbox')
-
-        if environment == 'production':
-            _logger.error(
-                'K+N webhook: production mode auth not yet implemented for carrier=%s '
-                '— rejecting request. Configure auth before enabling production mode.',
-                carrier.id,
-            )
+        if not exists or environment == 'production':
+            if not exists:
+                _logger.warning(
+                    'K+N webhook: carrier_id=%s not found — returning 403 (enumeration prevention)',
+                    carrier_id,
+                )
+            else:
+                _logger.error(
+                    'K+N webhook: production mode auth not yet implemented for carrier=%s '
+                    '— rejecting request. Configure auth before enabling production mode.',
+                    carrier.id,
+                )
             return request.make_json_response(
-                {'error': 'Production authentication not configured'},
+                {'error': 'Forbidden'},
                 status=403,
             )
         else:

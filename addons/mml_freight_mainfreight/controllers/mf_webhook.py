@@ -74,18 +74,13 @@ class MFWebhookController(http.Controller):
         message_type = body.get('messageType') or body.get('MessageType') or 'unknown'
         message_id = body.get('messageId') or body.get('MessageId') or ''
 
-        _logger.info(
-            'MF webhook received: messageType=%s messageId=%s',
-            message_type, message_id,
-        )
-
         carrier = _find_carrier(request.env)
         if not carrier:
             _logger.warning('MF webhook: no active mainfreight carrier configured.')
             return {'status': 'ok'}
 
         # Auth: validate X-MF-Secret header when x_mf_webhook_secret is configured.
-        # If secret is unset, accept with a warning (permissive during onboarding only).
+        # If secret is unset, reject with 403 (must configure before go-live).
         configured_secret = carrier.sudo().x_mf_webhook_secret
         if configured_secret:
             received_secret = request.httprequest.headers.get('X-MF-Secret', '')
@@ -97,7 +92,7 @@ class MFWebhookController(http.Controller):
                     'MF webhook: rejected request with invalid or missing X-MF-Secret '
                     '(carrier=%s)', carrier.id,
                 )
-                return {'status': 'ok'}  # 200 to prevent retry storms; secret mismatch logged
+                return request.make_json_response({'error': 'Unauthorized'}, status=403)
         else:
             _logger.error(
                 'MF webhook: x_mf_webhook_secret not configured on carrier %s — '
@@ -108,6 +103,12 @@ class MFWebhookController(http.Controller):
                 {'error': 'Webhook authentication not configured'},
                 status=403,
             )
+
+        # Log AFTER authentication succeeds to avoid leaking message metadata pre-auth.
+        _logger.info(
+            'MF webhook received: messageType=%s messageId=%s',
+            message_type, message_id,
+        )
 
         # Deduplication: use messageId if available, else SHA-256 of body
         dedup_key = message_id if message_id else hashlib.sha256(body_bytes).hexdigest()

@@ -41,6 +41,7 @@ class FreightCarrierKnplus(models.Model):
     x_knplus_access_token = fields.Char(
         'K+N Access Token (cached)',
         groups='stock.group_stock_manager',
+        password=True,
         copy=False,
         help='Cached OAuth access token. Refreshed automatically on expiry.',
     )

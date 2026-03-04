@@ -919,7 +919,7 @@ class FreightBooking(models.Model):
                     'status':      evt_status,
                     'location':    evt.get('location', ''),
                     'description': evt.get('description', ''),
-                    'raw_payload': evt.get('raw_payload', ''),
+                    'raw_payload': 'redacted — PII',
                 })
             if evt_status in state_order:
                 if latest_state is None or state_order.index(evt_status) > state_order.index(latest_state):

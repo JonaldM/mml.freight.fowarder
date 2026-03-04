@@ -59,7 +59,7 @@ class FreightWebhookController(http.Controller):
         _logger.info('Freight webhook validated for carrier %s', carrier_id)
 
         body = request.jsonrequest or {}
-        registry = request.env['freight.adapter.registry'].sudo()
+        registry = request.env['freight.adapter.registry']
         adapter = registry.get_adapter(carrier.sudo())
         if adapter:
             try:
@@ -69,7 +69,6 @@ class FreightWebhookController(http.Controller):
                     'Webhook dispatch error for carrier %s: %s', carrier_id, e,
                     exc_info=True,
                 )
-                raise
         else:
             _logger.info(
                 'Freight webhook carrier %s has no registered adapter — ignoring', carrier_id,

@@ -25,6 +25,18 @@ def _quote_base(carrier):
     return 'https://api.dsv.com/qs'
 
 
+_DSV_ALLOWED_HOSTS = frozenset({'api.dsv.com', 'api-demo.dsv.com'})
+
+
+def _validate_dsv_download_url(url):
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        return parsed.scheme == 'https' and parsed.netloc in _DSV_ALLOWED_HOSTS
+    except Exception:
+        return False
+
+
 _DSV_EVENT_STATE_MAP = {
     'BOOKING_CONFIRMED': 'confirmed',
     'CARGO_RECEIVED':    'cargo_ready',
@@ -327,6 +339,12 @@ class DsvGenericAdapter(FreightAdapterBase):
             if not download_url:
                 continue
             doc_type = _DSV_DOC_TYPE_MAP.get(raw.get('documentType', ''), 'other')
+            if not _validate_dsv_download_url(download_url):
+                _logger.warning(
+                    'DSV document: rejected downloadUrl %r (not on allowlist)',
+                    download_url[:80],
+                )
+                continue
             try:
                 dl = requests.get(download_url, headers=self._headers(token, 'doc_download'), timeout=30)
             except Exception as e:
