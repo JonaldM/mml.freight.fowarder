@@ -25,7 +25,7 @@ class FreightCarrierDsv(models.Model):
     x_dsv_pat = fields.Char('XPress PAT', groups='stock.group_stock_manager', password=True)
 
     # Cached OAuth token (Generic API)
-    x_dsv_access_token = fields.Char('DSV Access Token (cached)', groups='stock.group_stock_manager', copy=False)
+    x_dsv_access_token = fields.Char('DSV Access Token (cached)', password=True, groups='stock.group_stock_manager', copy=False)
     x_dsv_token_expiry = fields.Datetime('DSV Token Expiry', copy=False)
 
     # Per-service APIM subscription keys — primary + secondary each

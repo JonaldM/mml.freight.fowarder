@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import UserError
 
 QUOTE_STATES = [
     ('pending', 'Pending'),
@@ -228,6 +229,14 @@ class FreightTenderQuote(models.Model):
     def action_select(self):
         """Select this quote: write selected_quote_id on tender and advance to 'selected' state."""
         self.ensure_one()
+        valid_states = ('requesting', 'quoted', 'partial')
+        if self.tender_id.state not in valid_states:
+            raise UserError(
+                'Cannot select a quote on a tender in state "%s". '
+                'The tender must be in one of: %s.' % (
+                    self.tender_id.state, ', '.join(valid_states)
+                )
+            )
         self.tender_id.write({
             'selected_quote_id': self.id,
             'state': 'selected',

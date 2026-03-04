@@ -55,14 +55,14 @@ class KnWebhookController(http.Controller):
         environment = getattr(carrier, 'x_knplus_environment', 'sandbox')
 
         if environment == 'production':
-            # TODO: implement auth validation after K+N onboarding confirms method
-            # Example (HMAC-SHA256 pattern from DSV):
-            #   if not _validate_kn_signature(carrier, body_bytes):
-            #       return {'status': 'ok'}
-            _logger.warning(
-                'K+N webhook: production mode but auth not yet implemented. '
-                'carrier=%s — treating as valid. Implement auth after K+N onboarding.',
+            _logger.error(
+                'K+N webhook: production mode auth not yet implemented for carrier=%s '
+                '— rejecting request. Configure auth before enabling production mode.',
                 carrier.id,
+            )
+            return request.make_json_response(
+                {'error': 'Production authentication not configured'},
+                status=403,
             )
         else:
             _logger.debug(

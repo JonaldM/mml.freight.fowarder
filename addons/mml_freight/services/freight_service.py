@@ -40,6 +40,21 @@ class FreightService:
             return None
         return booking.transit_days_actual or None
 
+    def get_booking_supplier_partner_id(self, booking_id: int) -> int | None:
+        """
+        Return the res.partner ID of the supplier linked to the first purchase order
+        on a freight.booking, or None if not found.
+        Used by mml_roq_forecast to update lead-time statistics without directly
+        browsing freight.booking (to preserve NullService isolation).
+        """
+        booking = self.env['freight.booking'].browse(booking_id)
+        if not booking.exists():
+            return None
+        po = booking.po_ids[:1]
+        if not po:
+            return None
+        return po.partner_id.id or None
+
     def get_delivered_booking_lead_times(self, po_ids: list[int]) -> list[float]:
         """
         Return a flat list of transit_days_actual values for all delivered freight.booking
@@ -48,7 +63,7 @@ class FreightService:
         Used by mml_roq_forecast to update per-supplier lead-time statistics.
         """
         bookings = self.env['freight.booking'].search([
-            ('purchase_order_id', 'in', po_ids),
+            ('po_ids', 'in', po_ids),
             ('state', '=', 'delivered'),
             ('transit_days_actual', '>', 0),
         ])

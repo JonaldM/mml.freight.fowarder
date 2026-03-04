@@ -180,6 +180,7 @@ class FreightBooking(models.Model):
             b.current_status = latest[0].status if latest else ''
 
     def action_confirm(self):
+        self.ensure_one()
         self.write({'state': 'confirmed'})
         for booking in self:
             self.env['mml.event'].emit(

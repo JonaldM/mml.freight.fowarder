@@ -35,4 +35,5 @@
     'installable': True,
     'auto_install': False,
     'application': True,
+    'web_icon': 'mml_freight,static/description/icon.png',
 }

@@ -99,9 +99,14 @@ class MFWebhookController(http.Controller):
                 )
                 return {'status': 'ok'}  # 200 to prevent retry storms; secret mismatch logged
         else:
-            _logger.warning(
+            _logger.error(
                 'MF webhook: x_mf_webhook_secret not configured on carrier %s — '
-                'accepting request without auth (set secret before go-live)', carrier.id,
+                'rejecting request. Set secret before go-live.',
+                carrier.id,
+            )
+            return request.make_json_response(
+                {'error': 'Webhook authentication not configured'},
+                status=403,
             )
 
         # Deduplication: use messageId if available, else SHA-256 of body
