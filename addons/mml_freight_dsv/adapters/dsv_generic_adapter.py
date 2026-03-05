@@ -25,14 +25,39 @@ def _quote_base(carrier):
     return 'https://api.dsv.com/qs'
 
 
-_DSV_ALLOWED_HOSTS = frozenset({'api.dsv.com', 'api-demo.dsv.com'})
+import urllib.parse
+
+_ALLOWED_DSV_DOMAINS = frozenset({
+    'api.dsv.com',
+    'api.sandbox.dsv.com',
+    'documentservice.dsv.com',
+    'www.dsv.com',
+})
+
+# Legacy alias kept for backward compat (tests may reference this)
+_DSV_ALLOWED_HOSTS = _ALLOWED_DSV_DOMAINS
+
+
+def _validate_dsv_url(url: str) -> str:
+    """Validate a DSV-supplied URL against the domain allowlist.
+
+    Raises UserError if the URL scheme is not HTTPS or the hostname is not
+    in the approved set.  Returns the url unchanged if valid.
+    """
+    from odoo.exceptions import UserError
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != 'https':
+        raise UserError('DSV download URL must use HTTPS: %s' % url)
+    if parsed.netloc.lower() not in _ALLOWED_DSV_DOMAINS:
+        raise UserError('DSV download URL hostname not in allowlist: %s' % parsed.netloc)
+    return url
 
 
 def _validate_dsv_download_url(url):
+    """Legacy boolean validator used in older call sites."""
     try:
-        from urllib.parse import urlparse
-        parsed = urlparse(url)
-        return parsed.scheme == 'https' and parsed.netloc in _DSV_ALLOWED_HOSTS
+        _validate_dsv_url(url)
+        return True
     except Exception:
         return False
 
@@ -339,7 +364,9 @@ class DsvGenericAdapter(FreightAdapterBase):
             if not download_url:
                 continue
             doc_type = _DSV_DOC_TYPE_MAP.get(raw.get('documentType', ''), 'other')
-            if not _validate_dsv_download_url(download_url):
+            try:
+                _validate_dsv_url(download_url)
+            except Exception:
                 _logger.warning(
                     'DSV document: rejected downloadUrl %r (not on allowlist)',
                     download_url[:80],

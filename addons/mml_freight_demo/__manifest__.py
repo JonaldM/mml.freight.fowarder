@@ -12,6 +12,6 @@
         'data/demo_products.xml',
         'data/demo_purchase_orders.xml',
     ],
-    'installable': True,
+    'installable': False,
     'auto_install': False,
 }
