@@ -983,7 +983,7 @@ def _create_landed_cost(self):
 | **Phase 4** | DSV labels/documents/webhooks, Mainfreight adapter, landed cost integration | 2 weeks |
 | **Phase 5** | Second carrier adapter, analytics dashboard, reliability scoring | 2 weeks |
 
-**Phase 1 is critical** — it validates the data model and UI without needing any API integration. Harold can build the tender/quote models, and you can manually enter quotes from emails while the API adapters are being built. This means the workflow is immediately usable.
+**Phase 1 is critical** — it validates the data model and UI without needing any API integration. The tender/quote models can be built and used to manually enter quotes from emails while the API adapters are being built. This means the workflow is immediately usable.
 
 ---
 

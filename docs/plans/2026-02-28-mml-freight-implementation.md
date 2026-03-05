@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build four Odoo 19 modules (mml_freight, mml_freight_dsv, mml_freight_knplus, mml_freight_demo) delivering a full freight tender → quote → select → book → 3PL handoff flow with mock DSV adapter so Harold only needs to supply API keys.
+**Goal:** Build four Odoo 19 modules (mml_freight, mml_freight_dsv, mml_freight_knplus, mml_freight_demo) delivering a full freight tender → quote → select → book → 3PL handoff flow with mock DSV adapter requiring only API keys to go live.
 
 **Architecture:** mml_freight is the carrier-agnostic core (tender/quote/booking models + abstract adapter interface). mml_freight_dsv registers DSV Generic and XPress adapters with OAuth auth scaffold and a mock adapter that returns hardcoded quotes when x_dsv_environment=demo. freight.booking.action_book() queues a 3pl.message via stock_3pl_core for Mainfreight inward order handoff.
 
@@ -2568,7 +2568,7 @@ mkdir -p addons/mml_freight_demo/{data,tests}
     'name': 'MML Freight — Demo Data',
     'version': '19.0.1.0.0',
     'category': 'Inventory/Inventory',
-    'summary': 'Demo data for MML Freight Orchestration — Harold starting point',
+    'summary': 'Demo data for MML Freight Orchestration',
     'author': 'MML',
     'license': 'OPL-1',
     'depends': ['mml_freight_dsv', 'mml_freight_knplus'],

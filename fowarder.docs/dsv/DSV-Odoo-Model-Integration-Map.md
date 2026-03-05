@@ -332,7 +332,7 @@ Key fields from the provided reference:
 
 ---
 
-## Notes for Harold
+## Implementation Notes
 
 1. **Odoo 19 module structure:** Build as `delivery_dsv` module extending `delivery.carrier` with the custom `delivery_type` options. This is the standard pattern for carrier integrations.
 2. **Token management:** Store tokens on `delivery.carrier` with `x_dsv_access_token` and `x_dsv_token_expiry`. Use `ir.cron` for refresh, but also implement lazy refresh on 401 responses.

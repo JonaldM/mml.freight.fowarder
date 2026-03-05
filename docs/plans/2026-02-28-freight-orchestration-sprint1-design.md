@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-28
 **Status:** Approved
-**Scope:** Full system build — all modules, complete test coverage, demo data. Harold validates at the end against DSV; no interim touchpoints required.
+**Scope:** Full system build — all modules, complete test coverage, demo data. Validate at the end against DSV; no interim touchpoints required.
 
 ---
 
@@ -13,7 +13,7 @@ Deliver a fully installable Odoo 19 freight orchestration system that:
 - Scaffolds DSV Generic + XPress adapters with OAuth auth (keys not required to install)
 - Provides a mock adapter so the full tender → quote → select → book flow works in demo mode
 - Wires confirmed freight bookings into the existing `stock_3pl_core` message queue (Mainfreight inward order)
-- Is fully tested — Harold installs, validates the UI, supplies DSV API keys, done
+- Is fully tested — install, validate the UI, supply DSV API keys, done
 
 ---
 
@@ -26,7 +26,7 @@ addons/
 ├── mml_freight/              Core orchestrator — zero carrier knowledge
 ├── mml_freight_dsv/          DSV Generic + XPress adapters + auth scaffold
 ├── mml_freight_knplus/       K+N stub (correct interface, NotImplementedError)
-└── mml_freight_demo/         Demo data — installs last, Harold's starting point
+└── mml_freight_demo/         Demo data — installs last, demo starting point
 ```
 
 ### Mainfreight repo (same Odoo addons path — already built)

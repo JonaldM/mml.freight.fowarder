@@ -264,6 +264,7 @@ class FreightBooking(models.Model):
         return True
 
     def action_cancel(self):
+        self.ensure_one()
         registry = self.env['freight.adapter.registry']
         adapter  = registry.get_adapter(self.carrier_id)
         if adapter and self.carrier_booking_id:

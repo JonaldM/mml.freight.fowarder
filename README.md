@@ -311,7 +311,7 @@ class FlexportAdapter(FreightAdapterBase):
 
 | Project | Path | Purpose |
 |---------|------|---------|
-| Mainfreight 3PL Integration | `E:\ClaudeCode\projects\mainfreight.3pl.intergration` | `stock_3pl_core` + `stock_3pl_mainfreight` — handles SFTP push to Mainfreight MIMS |
+| Mainfreight 3PL Integration | `mainfreight.3pl.intergration/` | `stock_3pl_core` + `stock_3pl_mainfreight` — handles SFTP push to Mainfreight MIMS |
 
 ---
 

@@ -10,7 +10,7 @@ The ROQ module's consolidation engine produces **shipment groups** — planned g
 
 - **Target Odoo version:** 19 (self-hosted)
 - **Module technical name:** `mml_freight_forwarding`
-- **Builder:** Claude Code + Jono (prototyping), Harold (implementation/integration)
+- **Builder:** Claude Code + Jono
 - **API partner:** DSV (existing integration work in progress)
 
 ---
@@ -168,7 +168,7 @@ Timeline of tracking events for a booking. Populated from DSV tracking API or ma
 
 ### Authentication
 
-- Confirm with Harold: current DSV API auth method (API key, OAuth, basic auth).
+- Confirm DSV API auth method (API key, OAuth, basic auth) before implementation.
 - Store credentials in Odoo system parameters (`ir.config_parameter`), not in code.
 - All API calls go through a single service class (`DsvApiService`) for consistent error handling and logging.
 
@@ -181,7 +181,7 @@ Timeline of tracking events for a booking. Populated from DSV tracking API or ma
 | Accept quote / book | TBD | User clicks "Accept" on freight.quote |
 | Get tracking updates | TBD | Scheduled cron job (daily or more frequent) |
 
-**Harold to confirm:** DSV API endpoint URLs, authentication method, request/response schemas. The module should be built with a clean API adapter pattern so that if DSV's endpoints change or a second forwarder is added later, only the adapter needs updating.
+**To confirm:** DSV API endpoint URLs, authentication method, request/response schemas. The module should be built with a clean API adapter pattern so that if DSV's endpoints change or a second forwarder is added later, only the adapter needs updating.
 
 ### API Adapter Pattern
 
@@ -413,7 +413,7 @@ For development without DSV API access:
 
 ---
 
-## Open Questions for Harold
+## Open Questions
 
 1. **DSV API credentials:** Where are these currently stored? What auth method?
 2. **DSV API endpoints:** Exact URLs and schemas for tender submission, quote retrieval, booking, tracking.
