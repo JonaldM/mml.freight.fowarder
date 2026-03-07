@@ -182,19 +182,18 @@ class FreightBooking(models.Model):
     def action_confirm(self):
         self.ensure_one()
         self.write({'state': 'confirmed'})
-        for booking in self:
-            self.env['mml.event'].emit(
-                'freight.booking.confirmed',
-                quantity=1,
-                billable_unit='freight_booking',
-                res_model=booking._name,
-                res_id=booking.id,
-                source_module='mml_freight',
-                payload={
-                    'booking_ref': booking.name,
-                    'carrier': booking.carrier_id.name if booking.carrier_id else '',
-                },
-            )
+        self.env['mml.event'].emit(
+            'freight.booking.confirmed',
+            quantity=1,
+            billable_unit='freight_booking',
+            res_model=self._name,
+            res_id=self.id,
+            source_module='mml_freight',
+            payload={
+                'booking_ref': self.name,
+                'carrier': self.carrier_id.name if self.carrier_id else '',
+            },
+        )
         self._queue_3pl_inward_order()
         self._build_inward_order_payload()
         return True
