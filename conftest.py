@@ -72,7 +72,7 @@ def _register_subpackage(full_name, real_path):
 
 
 def _wire_freight_addons():
-    """Wire mml_freight and mml_freight_dsv into the odoo.addons namespace."""
+    """Wire mml_freight, mml_freight_dsv, mml_freight_knplus, and mml_freight_mainfreight into the odoo.addons namespace."""
 
     # ------------------------------------------------------------------
     # psycopg2 stub — freight_booking.py imports it at module level but
@@ -95,6 +95,22 @@ def _wire_freight_addons():
     _register_addon_package('mml_freight_dsv', mfd)
     for sub in ('adapters', 'models', 'controllers', 'wizards', 'tests'):
         _register_subpackage(f'odoo.addons.mml_freight_dsv.{sub}', mfd / sub)
+
+    # ------------------------------------------------------------------
+    # mml_freight_knplus
+    # ------------------------------------------------------------------
+    mfk = _ADDONS / 'mml_freight_knplus'
+    _register_addon_package('mml_freight_knplus', mfk)
+    for sub in ('adapters', 'models', 'controllers', 'tests'):
+        _register_subpackage(f'odoo.addons.mml_freight_knplus.{sub}', mfk / sub)
+
+    # ------------------------------------------------------------------
+    # mml_freight_mainfreight
+    # ------------------------------------------------------------------
+    mfm = _ADDONS / 'mml_freight_mainfreight'
+    _register_addon_package('mml_freight_mainfreight', mfm)
+    for sub in ('adapters', 'models', 'controllers', 'tests'):
+        _register_subpackage(f'odoo.addons.mml_freight_mainfreight.{sub}', mfm / sub)
 
 
 _wire_freight_addons()

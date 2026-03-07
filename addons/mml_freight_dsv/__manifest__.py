@@ -8,10 +8,12 @@
     'depends': ['mml_freight', 'purchase'],
     'data': [
         'security/ir.model.access.csv',
+        'data/ir_cron.xml',
         'views/freight_carrier_dsv_views.xml',
         'views/dsv_doc_upload_wizard_views.xml',
         'views/purchase_order_dsv_views.xml',
     ],
     'installable': True,
+    'application': False,
     'auto_install': False,
 }

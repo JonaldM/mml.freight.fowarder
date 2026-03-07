@@ -11,5 +11,6 @@
         'views/freight_carrier_knplus_views.xml',
     ],
     'installable': True,
+    'application': False,
     'auto_install': False,
 }
