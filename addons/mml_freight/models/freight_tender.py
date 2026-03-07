@@ -403,6 +403,7 @@ class FreightTender(models.Model):
         return True
 
     def action_cancel(self):
+        self.ensure_one()
         if self.booking_id and self.booking_id.state not in ('delivered', 'cancelled'):
             raise UserError(
                 'This tender has an active booking (%s). '

@@ -617,7 +617,8 @@ class FreightBooking(models.Model):
                 continue
             try:
                 doc = InwardOrderDocument(connector, self.env)
-                xml = doc.build_outbound(self, action='create')
+                po = self.env['purchase.order'].browse(msg.ref_id)
+                xml = doc.build_outbound(self, action='create', po=po)
                 msg.write({'payload_xml': xml, 'state': 'queued'})
                 _logger.info(
                     'freight.booking %s: inward order payload built, message %s queued (PO id=%s)',
