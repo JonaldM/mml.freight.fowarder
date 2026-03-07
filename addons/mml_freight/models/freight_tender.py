@@ -133,7 +133,7 @@ class FreightTender(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                vals['name'] = self.env['ir.sequence'].next_by_code('freight.tender') or 'New'
+                vals['name'] = self.env['ir.sequence'].sudo().next_by_code('freight.tender') or 'New'
             if not vals.get('tender_expiry'):
                 vals['tender_expiry'] = fields.Datetime.now() + timedelta(days=3)
         records = super().create(vals_list)

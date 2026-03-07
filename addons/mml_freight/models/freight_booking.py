@@ -170,7 +170,7 @@ class FreightBooking(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                vals['name'] = self.env['ir.sequence'].next_by_code('freight.booking') or 'New'
+                vals['name'] = self.env['ir.sequence'].sudo().next_by_code('freight.booking') or 'New'
         return super().create(vals_list)
 
     @api.depends('tracking_event_ids.status', 'tracking_event_ids.event_date')
