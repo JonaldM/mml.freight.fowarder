@@ -71,9 +71,6 @@ class MFWebhookController(http.Controller):
             _logger.warning('MF webhook: unexpected payload type %s', type(body).__name__)
             return {'status': 'ok'}
 
-        message_type = body.get('messageType') or body.get('MessageType') or 'unknown'
-        message_id = body.get('messageId') or body.get('MessageId') or ''
-
         carrier = _find_carrier(request.env)
         if not carrier:
             _logger.warning('MF webhook: no active mainfreight carrier configured.')
@@ -103,6 +100,10 @@ class MFWebhookController(http.Controller):
                 {'error': 'Webhook authentication not configured'},
                 status=403,
             )
+
+        # Extract message metadata only after authentication succeeds.
+        message_type = body.get('messageType') or body.get('MessageType') or 'unknown'
+        message_id = body.get('messageId') or body.get('MessageId') or ''
 
         # Log AFTER authentication succeeds to avoid leaking message metadata pre-auth.
         _logger.info(
