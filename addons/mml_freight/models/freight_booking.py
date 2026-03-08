@@ -435,7 +435,12 @@ class FreightBooking(models.Model):
             except (ValueError, TypeError):
                 pass
         return self.env['product.product'].search(
-            [('name', '=', 'Freight Cost'), ('type', '=', 'service')], limit=1,
+            [
+                ('name', '=', 'Freight Cost'),
+                ('type', '=', 'service'),
+                ('company_id', 'in', [self.company_id.id, False]),
+            ],
+            limit=1,
         )
 
     def action_create_landed_cost(self):
