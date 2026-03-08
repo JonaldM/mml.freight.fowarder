@@ -68,9 +68,14 @@ class KnWebhookController(http.Controller):
                 status=403,
             )
         else:
-            _logger.debug(
-                'K+N webhook: sandbox mode — accepting without auth validation. carrier=%s',
-                carrier.id,
+            _logger.warning(
+                'K+N webhook: auth not yet implemented for carrier %s; '
+                'returning 501 until K+N provides HMAC or API key spec.',
+                carrier_id,
+            )
+            return request.make_json_response(
+                {'status': 'not_implemented', 'message': 'Webhook auth pending K+N onboarding'},
+                status=501,
             )
 
         body = request.get_json_data()
