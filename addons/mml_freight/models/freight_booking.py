@@ -635,7 +635,7 @@ class FreightBooking(models.Model):
                     self.name, msg.id, e,
                 )
                 self.message_post(
-                    body=f'⚠️ Failed to build Mainfreight inward order payload for message {msg.id}: {e}. '
+                    body=f'Failed to build Mainfreight inward order payload for message {msg.id}: {e}. '
                          f'Manual intervention required.',
                     message_type='comment',
                     subtype_xmlid='mail.mt_note',

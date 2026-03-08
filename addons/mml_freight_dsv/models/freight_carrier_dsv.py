@@ -1,4 +1,9 @@
+import logging
+from datetime import timedelta
+
 from odoo import models, fields
+
+_logger = logging.getLogger(__name__)
 
 # Services that each have their own APIM subscription (primary + secondary keys).
 _SUBKEY_SERVICES = ('quote', 'booking', 'doc_upload', 'doc_download', 'visibility', 'invoicing', 'webhook')
@@ -80,17 +85,15 @@ class FreightCarrierDsv(models.Model):
 
     def cron_refresh_dsv_tokens(self):
         """Cron: proactively refresh DSV OAuth tokens expiring within 10 minutes."""
-        from datetime import timedelta
-        import logging
+        from odoo.addons.mml_freight_dsv.adapters.dsv_auth import refresh_token
         soon = fields.Datetime.now() + timedelta(minutes=10)
         carriers = self.search([
             ('x_dsv_environment', '=', 'production'),
             ('x_dsv_client_id', '!=', False),
             ('x_dsv_token_expiry', '<', soon),
         ])
-        from odoo.addons.mml_freight_dsv.adapters.dsv_auth import refresh_token
         for carrier in carriers:
             try:
                 refresh_token(carrier)
             except Exception as e:
-                logging.getLogger(__name__).error('DSV token refresh failed for %s: %s', carrier.name, e)
+                _logger.error('DSV token refresh failed for %s: %s', carrier.name, e)

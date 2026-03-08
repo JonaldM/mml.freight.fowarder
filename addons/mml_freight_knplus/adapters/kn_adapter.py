@@ -32,7 +32,6 @@ class KnAdapter(FreightAdapterBase):
         See x_knplus_quote_mode on the carrier record.
         """
         if getattr(self.carrier, 'x_knplus_quote_mode', 'manual') == 'api':
-            # TODO: implement after K+N onboarding confirms quote API availability
             raise NotImplementedError(
                 'K+N quote API not yet implemented. '
                 'Set quote_mode=manual and enter quotes via myKN portal.'
@@ -42,12 +41,11 @@ class KnAdapter(FreightAdapterBase):
     def create_booking(self, tender, selected_quote):
         """Book air or road freight via K+N API.
 
-        TODO: implement after K+N onboarding:
+        Pending K+N onboarding — expected endpoints:
           - Book Air Inbound: POST /booking/air
           - Book Road Inbound: POST /booking/road
           - Sea booking: TBC (confirm with K+N rep)
         """
-        # TODO: implement after K+N onboarding
         raise NotImplementedError(
             'K+N booking API not yet implemented. '
             'Pending K+N API onboarding — see fowarder.docs/KN-API-Integration-Guide.md.'
@@ -56,11 +54,10 @@ class KnAdapter(FreightAdapterBase):
     def get_tracking(self, booking):
         """Fetch tracking events via Shipment Status API.
 
-        TODO: implement after K+N onboarding:
+        Pending K+N onboarding — expected endpoint:
           GET /shipment/status/{shipment_id}
           Normalise K+N event codes → freight.tracking.event dicts.
         """
-        # TODO: implement after K+N API access confirmed
         raise NotImplementedError(
             'K+N tracking API not yet implemented. '
             'Pending K+N API onboarding — see fowarder.docs/KN-API-Integration-Guide.md.'
@@ -69,11 +66,10 @@ class KnAdapter(FreightAdapterBase):
     def get_documents(self, booking):
         """Download shipment documents via Document Search API v1.
 
-        TODO: implement after K+N onboarding:
+        Pending K+N onboarding — expected endpoint:
           GET /documents/search/{shipment_id}
           Download HBL, AWB, POD, customs declaration, packing list.
         """
-        # TODO: implement after K+N API access
         return []
 
     def handle_webhook(self, body):
@@ -82,10 +78,9 @@ class KnAdapter(FreightAdapterBase):
         K+N push sends historical events on subscription — full backfill on first push.
         Deduplicate on (booking_id, carrier_event_code, event_date).
 
-        TODO: implement after K+N webhook onboarding:
+        Pending K+N webhook onboarding:
           Confirm push endpoint URL, auth method, and payload schema with K+N rep.
         """
-        # TODO: implement after K+N webhook onboarding
         _logger.warning(
             'K+N webhook received but handler not implemented. '
             'body keys: %s', list(body.keys()) if isinstance(body, dict) else type(body).__name__,

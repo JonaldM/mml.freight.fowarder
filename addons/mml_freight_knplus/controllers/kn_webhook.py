@@ -16,7 +16,6 @@ and log a warning. Production mode should have auth validation in place.
 Endpoint: POST /knplus/webhook/<carrier_id>
 """
 
-import hashlib
 import logging
 
 from odoo import http
@@ -24,7 +23,7 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
-# TODO: populate after K+N onboarding confirms webhook auth header name
+# Placeholder — confirm auth header name with K+N during onboarding.
 _KN_AUTH_HEADER = 'X-KN-Signature'
 
 
@@ -77,58 +76,3 @@ class KnWebhookController(http.Controller):
                 {'status': 'not_implemented', 'message': 'Webhook auth pending K+N onboarding'},
                 status=501,
             )
-
-        body = request.get_json_data()
-        if not isinstance(body, dict):
-            _logger.warning('K+N webhook: unexpected payload type %s', type(body).__name__)
-            return {'status': 'ok'}
-
-        # Extract event type for logging (K+N push schema TBC)
-        # Likely fields: eventType, messageType, shipmentId, etc.
-        event_type = (
-            body.get('eventType') or body.get('messageType') or
-            body.get('type') or 'unknown'
-        )
-        _logger.info('K+N webhook: carrier=%s event_type=%s', carrier.id, event_type)
-
-        # Deduplication: reject retried payloads using SHA-256 of raw body
-        source_hash = hashlib.sha256(body_bytes).hexdigest()
-        existing = request.env['freight.webhook.event'].sudo().search([
-            ('carrier_id', '=', carrier.id),
-            ('source_hash', '=', source_hash),
-        ], limit=1)
-        if existing:
-            _logger.info(
-                'K+N webhook: duplicate payload ignored (carrier=%s hash=%s)',
-                carrier.id, source_hash[:16],
-            )
-            return {'status': 'ok'}
-
-        try:
-            with request.env.cr.savepoint():
-                request.env['freight.webhook.event'].sudo().create({
-                    'carrier_id': carrier.id,
-                    'source_hash': source_hash,
-                    'event_type': event_type,
-                })
-        except Exception as exc:
-            if 'unique' in str(exc).lower():
-                _logger.info(
-                    'K+N webhook: concurrent duplicate ignored (carrier=%s hash=%s)',
-                    carrier.id, source_hash[:16],
-                )
-                return {'status': 'ok'}
-            raise
-
-        # Route to adapter's handle_webhook for processing
-        adapter = request.env['freight.adapter.registry'].get_adapter(carrier)
-        if adapter:
-            try:
-                adapter.handle_webhook(body)
-            except Exception as exc:
-                _logger.error(
-                    'K+N webhook: adapter.handle_webhook failed for carrier=%s: %s',
-                    carrier.id, exc,
-                )
-
-        return {'status': 'ok'}

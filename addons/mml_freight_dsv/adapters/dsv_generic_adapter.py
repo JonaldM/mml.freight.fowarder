@@ -1,5 +1,7 @@
 import json
 import logging
+import urllib.parse
+
 import requests
 from odoo.addons.mml_freight.adapters.base_adapter import FreightAdapterBase
 from odoo.addons.mml_freight_dsv.adapters.dsv_auth import get_token, refresh_token, DsvAuthError
@@ -25,13 +27,10 @@ def _quote_base(carrier):
     return 'https://api.dsv.com/qs'
 
 
-import urllib.parse
-
 _ALLOWED_DSV_DOMAINS = frozenset({
     'api.dsv.com',
     'api.sandbox.dsv.com',
     'documentservice.dsv.com',
-    'www.dsv.com',
 })
 
 # Legacy alias kept for backward compat (tests may reference this)
@@ -465,8 +464,8 @@ class DsvGenericAdapter(FreightAdapterBase):
         except Exception as e:
             _logger.warning('DSV upload_document request failed for %s: %s', booking.name, e)
             return None
-        # TODO: consolidate with _post_with_retry (multipart/files= uploads can't use
-        #       the current json= only helper)
+        # Manual 401-retry here because _post_with_retry uses json= and cannot handle
+        # multipart/files= uploads. A future helper could abstract this pattern.
         if resp.status_code == 401:
             try:
                 token = refresh_token(self.carrier)

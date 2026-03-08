@@ -121,3 +121,10 @@ Idempotency guard: skips POs that already have a `create`-type `inward_order` me
 | Root mono-repo | `E:\ClaudeCode\projects\mml.odoo.apps` |
 
 The `3pl.message` and `3pl.connector` models referenced in `freight_booking.py` live in `stock_3pl_core`. `freight.booking` checks `'3pl.connector' in self.env` before attempting any 3PL operations.
+
+## Available Commands
+
+- `/plan` — implementation plan before adding carrier adapters or new lifecycle stages
+- `/tdd` — write mock adapter tests first; all tests here run without live Odoo
+- `/code-review` — review before activating new carrier integrations in production
+- `/security-scan` — check webhook HMAC validation, URL allowlists, OAuth token storage

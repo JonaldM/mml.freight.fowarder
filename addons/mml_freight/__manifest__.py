@@ -3,8 +3,9 @@
     'version': '19.0.1.0.0',
     'category': 'Inventory/Inventory',
     'summary': 'Freight tender, quote, booking and tracking for inbound POs',
-    'author': 'MML',
-    'license': 'OPL-1',
+    'author': 'MML Consumer Products Ltd',
+    'website': 'https://www.mmlconsumerproducts.co.nz',
+    'license': 'LGPL-3',
     'depends': [
         'mml_base',
         'mail',
