@@ -663,7 +663,7 @@ class FreightBooking(models.Model):
                 booking.state == 'delivered' and
                 not booking.document_ids.filtered(lambda d: d.doc_type == 'pod')
             )
-            needs_invoice = booking.state == 'delivered' and not booking.actual_rate
+            needs_invoice = booking.state == 'delivered' and booking.actual_rate == 0
 
             if not (needs_docs or needs_pod or needs_invoice):
                 continue
