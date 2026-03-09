@@ -8,7 +8,7 @@ from odoo.addons.mml_freight.adapters.base_adapter import FreightAdapterBase
 from odoo.addons.mml_freight_mainfreight.adapters.mf_auth import (
     get_base_url, get_headers,
     TRACKING_PATH, TRACKING_CURRENT_PATH,
-    DOCUMENTS_PATH, INVOICE_PATH,
+    DOCUMENTS_PATH, INVOICE_PATH,  # noqa: F401 — reserved for Documents/Invoice API stubs
 )
 
 _logger = logging.getLogger(__name__)
@@ -301,7 +301,7 @@ class MFAdapter(FreightAdapterBase):
         """Fetch BOL, customs, packing list from Mainfreight Documents API.
 
         Not yet implemented — endpoint path unconfirmed pending MF developer account.
-        Returns [] so callers degrade gracefully.
+        Callers must catch NotImplementedError and degrade gracefully.
         """
         # implement once MF developer account is active — endpoint path unconfirmed
         raise NotImplementedError(
