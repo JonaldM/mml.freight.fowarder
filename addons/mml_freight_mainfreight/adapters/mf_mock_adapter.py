@@ -94,3 +94,33 @@ class MFMockAdapter(FreightAdapterBase):
             'MF sandbox webhook received — no action. messageType=%s',
             body.get('messageType', 'unknown') if isinstance(body, dict) else '?',
         )
+
+    def get_documents(self, booking):
+        if not self._uat():
+            return self._live().get_documents(booking)
+        # Minimal valid PDF header — enough for Odoo to store as attachment
+        _PDF_STUB = b'%PDF-1.0\n1 0 obj<</Type /Catalog>>endobj\nxref\n0 0\ntrailer<</Root 1 0 R>>\nstartxref\n9\n%%EOF'
+        return [
+            {
+                'doc_type': 'pod',
+                'bytes': _PDF_STUB,
+                'filename': f'POD-MOCK-{booking.name}.pdf',
+                'carrier_doc_ref': 'MF-POD-MOCK-001',
+            },
+            {
+                'doc_type': 'customs',
+                'bytes': _PDF_STUB,
+                'filename': f'CUSTOMS-MOCK-{booking.name}.pdf',
+                'carrier_doc_ref': 'MF-CUSTOMS-MOCK-001',
+            },
+        ]
+
+    def get_invoice(self, booking):
+        if not self._uat():
+            return self._live().get_invoice(booking)
+        return {
+            'carrier_invoice_ref': 'MF-INV-MOCK-001',
+            'amount': 2840.0,
+            'currency': 'NZD',
+            'invoice_date': '2026-03-10',
+        }
