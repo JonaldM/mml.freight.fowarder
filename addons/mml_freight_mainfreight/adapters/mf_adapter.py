@@ -314,8 +314,8 @@ class MFAdapter(FreightAdapterBase):
 
         1. Calls the tracking current endpoint to extract POD URLs from the response.
         2. Downloads each POD URL's bytes using the same API key auth.
-        3. Calls _fetch_carrier_documents() for BOL/customs/packing list — returns []
-           until MF developer account is active and endpoint is confirmed.
+        3. Calls _fetch_carrier_documents() for BOL/customs/packing list — raises
+           NotImplementedError (caught internally) until MF developer account is active.
 
         Returns list of dicts: {doc_type, bytes, filename, carrier_doc_ref}
         """
