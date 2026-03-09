@@ -390,12 +390,60 @@ class FreightBooking(models.Model):
 
             count += 1
 
+        self._attach_documents_to_pos(self.document_ids)
         self.message_post(
             body=f'{count} document(s) fetched from carrier and attached.',
             message_type='comment',
             subtype_xmlid='mail.mt_note',
         )
         return True
+
+    def _attach_documents_to_pos(self, freight_docs):
+        """Copy freight documents to all linked purchase orders as ir.attachment.
+
+        For each freight.document in freight_docs, for each PO in self.po_ids:
+        - Creates ir.attachment (res_model='purchase.order', res_id=po.id).
+        - Skips if attachment with same filename already exists on that PO (idempotent).
+
+        After all docs are attached, posts one chatter note per PO listing all doc types
+        attached in this run. One message per fetch — no chatter spam.
+        """
+        if not freight_docs or not self.po_ids:
+            return
+
+        for po in self.po_ids:
+            attached_types = []
+            for fdoc in freight_docs:
+                attachment = fdoc.attachment_id
+                if not attachment:
+                    continue
+                existing = self.env['ir.attachment'].search([
+                    ('res_model', '=', 'purchase.order'),
+                    ('res_id', '=', po.id),
+                    ('name', '=', attachment.name),
+                ], limit=1)
+                if existing:
+                    continue
+                self.env['ir.attachment'].create({
+                    'name': attachment.name,
+                    'type': 'binary',
+                    'datas': attachment.datas,
+                    'res_model': 'purchase.order',
+                    'res_id': po.id,
+                    'mimetype': attachment.mimetype or 'application/pdf',
+                })
+                attached_types.append(fdoc.doc_type)
+
+            if attached_types:
+                type_list = ', '.join(sorted(set(attached_types)))
+                po.message_post(
+                    body=(
+                        f'{len(attached_types)} document(s) attached from freight booking '
+                        f'{self.name}: {type_list}'
+                    ),
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
 
     def action_fetch_invoice(self):
         """Fetch freight invoice from carrier and update actual_rate."""
@@ -413,13 +461,25 @@ class FreightBooking(models.Model):
             'actual_rate': invoice_data['amount'],
             'currency_id': curr.id if curr else self.currency_id.id,
         })
-        self.message_post(
-            body=(
-                f"Freight invoice fetched: {invoice_data['amount']:.2f} "
-                f"{invoice_data.get('currency', '')} "
-                f"(DSV Invoice #{invoice_data.get('dsv_invoice_id', 'N/A')})"
-            )
+        inv_ref = (
+            invoice_data.get('carrier_invoice_ref')
+            or invoice_data.get('dsv_invoice_id', 'N/A')
         )
+        amount_str = f"{invoice_data['amount']:.2f} {invoice_data.get('currency', '')}"
+        self.message_post(
+            body=f'Freight cost confirmed: {amount_str} (invoice {inv_ref})',
+            message_type='comment',
+            subtype_xmlid='mail.mt_note',
+        )
+        for po in self.po_ids:
+            po.message_post(
+                body=(
+                    f'Freight cost confirmed: {amount_str} '
+                    f'({self.carrier_id.name} invoice {inv_ref})'
+                ),
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
+            )
         return True
 
     def _get_freight_cost_product(self):
