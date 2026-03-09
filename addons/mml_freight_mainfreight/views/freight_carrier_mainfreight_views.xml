@@ -27,7 +27,7 @@
                 </group>
                 <group string="Mainfreight Authentication" name="mf_auth"
                        invisible="delivery_type != 'mainfreight'">
-                    <field name="x_mf_api_key" password="True" string="API Key"/>
+                    <field name="x_mf_api_key" password="1" string="API Key"/>
                     <p colspan="2" class="text-muted" style="font-size:smaller">
                         Simple API key auth — no OAuth required.
                         Header: Authorization: Secret {api_key}.

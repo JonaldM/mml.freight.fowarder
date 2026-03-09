@@ -12,7 +12,7 @@
                     <field name="max_weight_kg"/>
                     <field name="supports_dg"/>
                     <field name="reliability_score"/>
-                    <field name="x_webhook_secret" password="True" groups="stock.group_stock_manager"/>
+                    <field name="x_webhook_secret" password="1" groups="stock.group_stock_manager"/>
                 </group>
                 <group string="Eligible Lanes" name="freight_lanes">
                     <field name="origin_country_ids" widget="many2many_tags"/>

@@ -4,7 +4,7 @@ import pathlib
 
 
 def test_dsv_wizard_acl_restricted_to_managers():
-    acl_path = pathlib.Path('addons/mml_freight_dsv/security/ir.model.access.csv')
+    acl_path = pathlib.Path(__file__).parent.parent / 'security' / 'ir.model.access.csv'
     with open(acl_path) as f:
         rows = list(csv.DictReader(f))
 

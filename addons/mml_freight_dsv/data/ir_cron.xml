@@ -8,7 +8,7 @@
             <field name="code">model.cron_refresh_dsv_tokens()</field>
             <field name="interval_number">8</field>
             <field name="interval_type">minutes</field>
-            <field name="numbercall">-1</field>
+
             <field name="active">True</field>
         </record>
     </data>

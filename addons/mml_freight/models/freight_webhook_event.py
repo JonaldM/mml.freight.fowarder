@@ -13,13 +13,10 @@ class FreightWebhookEvent(models.Model):
     _description = 'Freight Webhook Event (deduplication log)'
     _order = 'received_at desc'
 
-    _sql_constraints = [
-        (
-            'unique_carrier_event',
-            'UNIQUE(carrier_id, source_hash)',
-            'This webhook payload has already been processed for this carrier.',
-        ),
-    ]
+    _unique_carrier_event = models.Constraint(
+        'UNIQUE(carrier_id, source_hash)',
+        'This webhook payload has already been processed for this carrier.',
+    )
 
     carrier_id = fields.Many2one(
         'delivery.carrier', required=True, ondelete='cascade', index=True,

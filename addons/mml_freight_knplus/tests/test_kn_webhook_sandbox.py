@@ -7,5 +7,5 @@ import pathlib
 
 
 def test_sandbox_returns_501():
-    src = pathlib.Path('addons/mml_freight_knplus/controllers/kn_webhook.py').read_text()
+    src = (pathlib.Path(__file__).parent.parent / 'controllers' / 'kn_webhook.py').read_text()
     assert '501' in src, "Sandbox mode must return HTTP 501 Not Implemented"

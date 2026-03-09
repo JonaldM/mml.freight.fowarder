@@ -81,18 +81,18 @@
                             <span class="o_freight_card_ref">
                                 <t t-esc="record.name.value"/>
                             </span>
-                            <t t-if="record.transport_mode.raw_value">
-                                <span t-attf-class="badge o_freight_mode_badge o_mode_#{record.transport_mode.raw_value}">
-                                    <t t-if="record.transport_mode.raw_value in ['sea_lcl','sea_fcl']">
+                            <t t-if="record.data.transport_mode">
+                                <span t-attf-class="badge o_freight_mode_badge o_mode_#{record.data.transport_mode}">
+                                    <t t-if="record.data.transport_mode in ['sea_lcl','sea_fcl']">
                                         <i class="fa fa-ship"/>&#160;
                                     </t>
-                                    <t t-elif="record.transport_mode.raw_value == 'air'">
+                                    <t t-elif="record.data.transport_mode == 'air'">
                                         <i class="fa fa-plane"/>&#160;
                                     </t>
-                                    <t t-elif="record.transport_mode.raw_value == 'road'">
+                                    <t t-elif="record.data.transport_mode == 'road'">
                                         <i class="fa fa-truck"/>&#160;
                                     </t>
-                                    <t t-elif="record.transport_mode.raw_value == 'rail'">
+                                    <t t-elif="record.data.transport_mode == 'rail'">
                                         <i class="fa fa-subway"/>&#160;
                                     </t>
                                     <t t-else="">
@@ -166,7 +166,7 @@
                             <small class="text-muted text-truncate me-2" style="max-width:55%;">
                                 <t t-esc="record.current_status.value"/>
                             </small>
-                            <span t-attf-class="badge rounded-pill o_freight_state_#{record.state.raw_value}">
+                            <span t-attf-class="badge rounded-pill o_freight_state_#{record.data.state}">
                                 <t t-esc="record.state.value"/>
                             </span>
                         </div>

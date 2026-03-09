@@ -31,12 +31,12 @@
                         Auth method (API key vs OAuth 2.0) is unconfirmed pending K+N
                         onboarding. Populate the relevant fields once confirmed.
                     </p>
-                    <field name="x_knplus_api_key" password="True"
+                    <field name="x_knplus_api_key" password="1"
                            string="API Key / Subscription Key"/>
                     <field name="x_knplus_client_id" string="OAuth Client ID"/>
-                    <field name="x_knplus_client_secret" password="True"
+                    <field name="x_knplus_client_secret" password="1"
                            string="OAuth Client Secret"/>
-                    <field name="x_knplus_access_token" readonly="1" password="True"
+                    <field name="x_knplus_access_token" readonly="1" password="1"
                            string="Access Token (cached)"/>
                     <field name="x_knplus_token_expiry" readonly="1"
                            string="Token Expiry"/>

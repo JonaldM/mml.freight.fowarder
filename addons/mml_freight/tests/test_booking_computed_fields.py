@@ -12,7 +12,7 @@ def _get_method_decorators(source: str, method_name: str) -> list:
 
 
 def test_compute_current_status_has_depends():
-    src = pathlib.Path('addons/mml_freight/models/freight_booking.py').read_text(encoding='utf-8')
+    src = (pathlib.Path(__file__).parent.parent / 'models' / 'freight_booking.py').read_text(encoding='utf-8')
     decorators = _get_method_decorators(src, '_compute_current_status')
     assert decorators, '_compute_current_status method not found'
     assert any('depends' in d for d in decorators), (
@@ -21,7 +21,7 @@ def test_compute_current_status_has_depends():
 
 
 def test_compute_transit_kpis_has_depends():
-    src = pathlib.Path('addons/mml_freight/models/freight_booking.py').read_text(encoding='utf-8')
+    src = (pathlib.Path(__file__).parent.parent / 'models' / 'freight_booking.py').read_text(encoding='utf-8')
     decorators = _get_method_decorators(src, '_compute_transit_kpis')
     assert decorators, '_compute_transit_kpis method not found'
     assert any('depends' in d for d in decorators), (

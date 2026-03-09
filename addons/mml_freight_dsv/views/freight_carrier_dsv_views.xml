@@ -25,10 +25,10 @@
                     <field name="x_dsv_mdm"/>
                     <field name="x_dsv_product_name" invisible="delivery_type != 'dsv_generic'"/>
                     <field name="x_dsv_client_id"     invisible="delivery_type != 'dsv_generic'"/>
-                    <field name="x_dsv_client_secret" invisible="delivery_type != 'dsv_generic'" password="True"/>
-                    <field name="x_dsv_service_auth"  invisible="delivery_type != 'dsv_xpress'" password="True"/>
-                    <field name="x_dsv_pat"           invisible="delivery_type != 'dsv_xpress'" password="True"/>
-                    <field name="x_dsv_access_token"  readonly="1" password="True"/>
+                    <field name="x_dsv_client_secret" invisible="delivery_type != 'dsv_generic'" password="1"/>
+                    <field name="x_dsv_service_auth"  invisible="delivery_type != 'dsv_xpress'" password="1"/>
+                    <field name="x_dsv_pat"           invisible="delivery_type != 'dsv_xpress'" password="1"/>
+                    <field name="x_dsv_access_token"  readonly="1" password="1"/>
                     <field name="x_dsv_token_expiry"  readonly="1"/>
                 </group>
 
@@ -36,32 +36,32 @@
                 <group string="DSV Subscription Keys" name="dsv_subkeys"
                        invisible="delivery_type != 'dsv_generic'">
                     <group string="Quote">
-                        <field name="x_dsv_subkey_quote_primary"   password="True" string="Primary"/>
-                        <field name="x_dsv_subkey_quote_secondary" password="True" string="Secondary"/>
+                        <field name="x_dsv_subkey_quote_primary"   password="1" string="Primary"/>
+                        <field name="x_dsv_subkey_quote_secondary" password="1" string="Secondary"/>
                     </group>
                     <group string="Booking">
-                        <field name="x_dsv_subkey_booking_primary"   password="True" string="Primary"/>
-                        <field name="x_dsv_subkey_booking_secondary" password="True" string="Secondary"/>
+                        <field name="x_dsv_subkey_booking_primary"   password="1" string="Primary"/>
+                        <field name="x_dsv_subkey_booking_secondary" password="1" string="Secondary"/>
                     </group>
                     <group string="Document Upload">
-                        <field name="x_dsv_subkey_doc_upload_primary"   password="True" string="Primary"/>
-                        <field name="x_dsv_subkey_doc_upload_secondary" password="True" string="Secondary"/>
+                        <field name="x_dsv_subkey_doc_upload_primary"   password="1" string="Primary"/>
+                        <field name="x_dsv_subkey_doc_upload_secondary" password="1" string="Secondary"/>
                     </group>
                     <group string="Document Download">
-                        <field name="x_dsv_subkey_doc_download_primary"   password="True" string="Primary"/>
-                        <field name="x_dsv_subkey_doc_download_secondary" password="True" string="Secondary"/>
+                        <field name="x_dsv_subkey_doc_download_primary"   password="1" string="Primary"/>
+                        <field name="x_dsv_subkey_doc_download_secondary" password="1" string="Secondary"/>
                     </group>
                     <group string="Visibility / Tracking">
-                        <field name="x_dsv_subkey_visibility_primary"   password="True" string="Primary"/>
-                        <field name="x_dsv_subkey_visibility_secondary" password="True" string="Secondary"/>
+                        <field name="x_dsv_subkey_visibility_primary"   password="1" string="Primary"/>
+                        <field name="x_dsv_subkey_visibility_secondary" password="1" string="Secondary"/>
                     </group>
                     <group string="Invoicing">
-                        <field name="x_dsv_subkey_invoicing_primary"   password="True" string="Primary"/>
-                        <field name="x_dsv_subkey_invoicing_secondary" password="True" string="Secondary"/>
+                        <field name="x_dsv_subkey_invoicing_primary"   password="1" string="Primary"/>
+                        <field name="x_dsv_subkey_invoicing_secondary" password="1" string="Secondary"/>
                     </group>
                     <group string="Webhook">
-                        <field name="x_dsv_subkey_webhook_primary"   password="True" string="Primary"/>
-                        <field name="x_dsv_subkey_webhook_secondary" password="True" string="Secondary"/>
+                        <field name="x_dsv_subkey_webhook_primary"   password="1" string="Primary"/>
+                        <field name="x_dsv_subkey_webhook_secondary" password="1" string="Secondary"/>
                     </group>
                 </group>
 

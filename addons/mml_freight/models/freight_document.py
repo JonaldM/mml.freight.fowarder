@@ -16,13 +16,10 @@ class FreightDocument(models.Model):
     _description = 'Freight Booking — Document'
     _order = 'id'
 
-    _sql_constraints = [
-        (
-            'unique_booking_doc',
-            'UNIQUE(booking_id, doc_type, carrier_doc_ref)',
-            'A document with this type and carrier reference already exists for this booking.',
-        ),
-    ]
+    _unique_booking_doc = models.Constraint(
+        'UNIQUE(booking_id, doc_type, carrier_doc_ref)',
+        'A document with this type and carrier reference already exists for this booking.',
+    )
 
     booking_id = fields.Many2one(
         'freight.booking', required=True, ondelete='cascade', index=True,

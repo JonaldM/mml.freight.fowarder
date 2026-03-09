@@ -16,18 +16,14 @@ class FreightCarrierContract(models.Model):
     _description = 'Freight Carrier Contract'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'date_start desc'
-    _sql_constraints = [
-        (
-            'date_end_after_start',
-            'CHECK(date_end >= date_start)',
-            'Contract end date must be on or after the start date.',
-        ),
-        (
-            'committed_quantity_positive',
-            'CHECK(committed_quantity > 0)',
-            'Committed quantity must be greater than zero.',
-        ),
-    ]
+    _check_date_end_after_start = models.Constraint(
+        'CHECK(date_end >= date_start)',
+        'Contract end date must be on or after the start date.',
+    )
+    _check_committed_quantity_positive = models.Constraint(
+        'CHECK(committed_quantity > 0)',
+        'Committed quantity must be greater than zero.',
+    )
 
     name = fields.Char('Contract Name', required=True)
     carrier_id = fields.Many2one(

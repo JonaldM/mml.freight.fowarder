@@ -17,9 +17,7 @@ def _find_line(source: str, needle: str) -> int:
 
 
 def test_auth_check_before_message_type_extraction():
-    src_path = pathlib.Path(
-        'addons/mml_freight_mainfreight/controllers/mf_webhook.py'
-    )
+    src_path = pathlib.Path(__file__).parent.parent / 'controllers' / 'mf_webhook.py'
     source = src_path.read_text()
 
     # Auth check: compare_digest is the definitive secret comparison

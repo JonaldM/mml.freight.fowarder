@@ -27,7 +27,6 @@
         <field name="code">model.cron_mf_tracking_poll()</field>
         <field name="interval_number">30</field>
         <field name="interval_type">minutes</field>
-        <field name="numbercall">-1</field>
         <field name="active" eval="False"/>
     </record>
 </odoo>

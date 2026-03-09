@@ -7,7 +7,6 @@
         <field name="code">model.cron_sync_tracking()</field>
         <field name="interval_number">30</field>
         <field name="interval_type">minutes</field>
-        <field name="numbercall">-1</field>
         <field name="active">True</field>
     </record>
     <record id="cron_freight_tender_expiry" model="ir.cron">
@@ -17,8 +16,6 @@
         <field name="code">model.cron_expire_tenders()</field>
         <field name="interval_number">1</field>
         <field name="interval_type">hours</field>
-        <field name="numbercall">-1</field>
-        <field name="doall" eval="False"/>
         <field name="active">True</field>
     </record>
     <record id="cron_contract_pace_alert" model="ir.cron">
@@ -28,8 +25,6 @@
         <field name="code">model.cron_contract_pace_alert()</field>
         <field name="interval_number">1</field>
         <field name="interval_type">weeks</field>
-        <field name="numbercall">-1</field>
-        <field name="doall" eval="False"/>
         <field name="active">True</field>
     </record>
 </odoo>
