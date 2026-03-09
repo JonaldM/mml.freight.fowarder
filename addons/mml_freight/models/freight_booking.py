@@ -445,6 +445,158 @@ class FreightBooking(models.Model):
                     subtype_xmlid='mail.mt_note',
                 )
 
+    def write(self, vals):
+        """Override write to trigger document fetch on key state transitions.
+
+        arrived_port → fetch customs, packing_list, label documents
+        delivered    → fetch all document types + freight invoice
+
+        API failures post a chatter warning but never block the state transition.
+        The cron safety net will retry any failed fetches.
+        """
+        prev_states = {rec.id: rec.state for rec in self}
+        result = super().write(vals)
+
+        new_state = vals.get('state')
+        if new_state not in ('arrived_port', 'delivered'):
+            return result
+
+        for rec in self:
+            prev = prev_states.get(rec.id)
+            if prev == new_state:
+                continue  # no real transition
+
+            try:
+                if new_state == 'arrived_port':
+                    rec._auto_fetch_documents(doc_types=['customs', 'packing_list', 'label'])
+                elif new_state == 'delivered':
+                    rec._auto_fetch_documents(doc_types=None)
+                    rec._auto_fetch_invoice()
+            except Exception as exc:
+                _logger.warning(
+                    'Auto-fetch failed on state transition to %s for booking %s: %s',
+                    new_state, rec.name, exc,
+                )
+                rec.message_post(
+                    body=f'Auto-fetch failed on transition to {new_state}, will retry via cron.',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
+
+        return result
+
+    def _auto_fetch_documents(self, doc_types=None):
+        """Fetch documents silently — used by state triggers and cron.
+
+        doc_types: list of doc_type strings to filter, or None = all types.
+        Returns False silently when no documents are available.
+        Does NOT raise UserError — callers handle failures.
+        """
+        self.ensure_one()
+        registry = self.env['freight.adapter.registry']
+        adapter = registry.get_adapter(self.carrier_id)
+        if not adapter:
+            return False
+
+        docs = adapter.get_documents(self)
+        if not docs:
+            return False
+
+        if doc_types is not None:
+            docs = [d for d in docs if d.get('doc_type') in doc_types]
+        if not docs:
+            return False
+
+        count = 0
+        new_doc_records = self.env['freight.document']
+        for doc in docs:
+            attachment = self.env['ir.attachment'].create({
+                'name': doc['filename'],
+                'type': 'binary',
+                'datas': base64.b64encode(doc['bytes']).decode(),
+                'res_model': 'freight.booking',
+                'res_id': self.id,
+                'mimetype': 'application/pdf',
+            })
+            carrier_doc_ref = doc.get('carrier_doc_ref', '') or ''
+            doc_type = doc['doc_type']
+            if not carrier_doc_ref:
+                carrier_doc_ref = 'local:' + hashlib.sha256(
+                    (doc_type + doc['filename']).encode('utf-8')
+                ).hexdigest()[:32]
+
+            existing_doc = self.document_ids.filtered(
+                lambda d, dt=doc_type, ref=carrier_doc_ref:
+                    d.doc_type == dt and d.carrier_doc_ref == ref
+            )[:1]
+
+            if existing_doc:
+                existing_doc.attachment_id = attachment
+                new_doc_records |= existing_doc
+            else:
+                new_record = self.env['freight.document'].create({
+                    'booking_id':      self.id,
+                    'doc_type':        doc_type,
+                    'attachment_id':   attachment.id,
+                    'carrier_doc_ref': carrier_doc_ref,
+                })
+                new_doc_records |= new_record
+
+            if doc_type == 'pod':
+                self.pod_attachment_id = attachment
+            count += 1
+
+        if count:
+            self._attach_documents_to_pos(new_doc_records)
+        return count > 0
+
+    def _auto_fetch_invoice(self):
+        """Fetch invoice silently — used by state triggers and cron.
+
+        Returns False on no data or adapter unavailable.
+        On exception: logs warning and posts chatter note on booking.
+        Does NOT raise UserError — callers handle failures.
+        """
+        self.ensure_one()
+        try:
+            adapter = self.env['freight.adapter.registry'].get_adapter(self.carrier_id)
+            if not adapter:
+                return False
+            invoice_data = adapter.get_invoice(self)
+            if not invoice_data:
+                return False
+            curr = self.env['res.currency'].search(
+                [('name', '=', invoice_data.get('currency', 'NZD'))], limit=1,
+            ) or self.currency_id
+            self.write({
+                'actual_rate': invoice_data['amount'],
+                'currency_id': curr.id if curr else self.currency_id.id,
+            })
+            inv_ref = invoice_data.get('carrier_invoice_ref', 'N/A')
+            amount_str = f"{invoice_data['amount']:.2f} {invoice_data.get('currency', '')}"
+            self.message_post(
+                body=f'Freight cost confirmed: {amount_str} ({self.carrier_id.name} invoice {inv_ref})',
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
+            )
+            for po in self.po_ids:
+                po.message_post(
+                    body=f'Freight cost confirmed: {amount_str} ({self.carrier_id.name} invoice {inv_ref})',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
+            return True
+        except Exception as exc:
+            _logger.warning(
+                'Invoice fetch failed for booking %s: %s', self.name, exc,
+            )
+            self.message_post(
+                body='Invoice fetch failed, will retry via cron.',
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
+            )
+            return False
+
     def action_fetch_invoice(self):
         """Fetch freight invoice from carrier and update actual_rate."""
         self.ensure_one()
