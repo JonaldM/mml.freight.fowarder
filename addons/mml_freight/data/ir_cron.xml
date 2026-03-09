@@ -27,4 +27,13 @@
         <field name="interval_type">weeks</field>
         <field name="active">True</field>
     </record>
+    <record id="cron_fetch_missing_documents" model="ir.cron">
+        <field name="name">Freight: Fetch Missing Documents and Invoices</field>
+        <field name="model_id" ref="model_freight_booking"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_fetch_missing_documents()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active">True</field>
+    </record>
 </odoo>

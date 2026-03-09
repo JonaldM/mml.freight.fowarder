@@ -627,6 +627,60 @@ class FreightBooking(models.Model):
             )
             return False
 
+    @api.model
+    def cron_fetch_missing_documents(self):
+        """Cron: daily safety net — fetch missing documents and invoices.
+
+        Targets bookings where ALL of:
+        - State in ['in_transit', 'arrived_port', 'customs', 'delivered']
+        - Carrier has Mainfreight API key or DSV client ID configured
+        - At least one of:
+            - No freight.document records at all
+            - State is 'delivered' and no POD document exists
+            - State is 'delivered' and actual_rate == 0 (no invoice fetched)
+
+        Runs _auto_fetch_documents() and/or _auto_fetch_invoice() as needed.
+        Silent no-op per booking if API returns nothing new.
+        """
+        doc_states = ['in_transit', 'arrived_port', 'customs', 'delivered']
+        bookings = self.search([('state', 'in', doc_states)])
+
+        for booking in bookings:
+            booking.invalidate_recordset()
+            if booking.state not in doc_states:
+                continue
+
+            carrier = booking.carrier_id
+            has_credentials = bool(
+                getattr(carrier, 'x_mf_api_key', None) or
+                getattr(carrier, 'x_dsv_client_id', None)
+            )
+            if not has_credentials:
+                continue
+
+            needs_docs = not booking.document_ids
+            needs_pod = (
+                booking.state == 'delivered' and
+                not booking.document_ids.filtered(lambda d: d.doc_type == 'pod')
+            )
+            needs_invoice = booking.state == 'delivered' and not booking.actual_rate
+
+            if not (needs_docs or needs_pod or needs_invoice):
+                continue
+
+            try:
+                if needs_docs or needs_pod:
+                    booking.with_context(_auto_fetch_in_progress=True)._auto_fetch_documents(
+                        doc_types=None,
+                    )
+                if needs_invoice:
+                    booking.with_context(_auto_fetch_in_progress=True)._auto_fetch_invoice()
+            except Exception as exc:
+                _logger.error(
+                    'cron_fetch_missing_documents: error on booking %s: %s',
+                    booking.name, exc,
+                )
+
     def action_fetch_invoice(self):
         """Fetch freight invoice from carrier and update actual_rate."""
         self.ensure_one()
