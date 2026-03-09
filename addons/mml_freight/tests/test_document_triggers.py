@@ -401,6 +401,11 @@ class TestAutoFetchInvoice:
 # same predicate logic that the cron uses. This is the pure-Python approach.
 # ---------------------------------------------------------------------------
 
+# MAINTENANCE WARNING: _cron_needs() duplicates the targeting logic from
+# cron_fetch_missing_documents() in freight_booking.py (lines ~644-683).
+# Any change to that method's targeting conditions (doc_states list, needs_*
+# checks, credential detection) MUST be mirrored here, or Group 3 tests will
+# pass while covering stale behaviour.
 def _cron_needs(booking):
     """Replicate the cron targeting logic from cron_fetch_missing_documents()."""
     doc_states = ['in_transit', 'arrived_port', 'customs', 'delivered']
@@ -506,3 +511,114 @@ class TestCronTargetingLogic:
         result = _cron_needs(booking)
         assert result is not None
         assert result.get('skipped') is not True
+
+
+# ---------------------------------------------------------------------------
+# Group 4 — write() state transition dispatch
+# ---------------------------------------------------------------------------
+
+class _IterableFreightBooking(FreightBooking):
+    """FreightBooking subclass that makes a single instance iterable.
+
+    write() uses ``for rec in self`` to snapshot prev_states.  Python
+    resolves special methods (__iter__) on the *type*, not the instance, so
+    we must define it at class level rather than patching the instance.
+    """
+
+    def __iter__(self):
+        yield self
+
+    def __len__(self):
+        return 1
+
+
+class TestWriteStateTriggerDispatch:
+    """Tests that write() dispatches both helpers on state transitions."""
+
+    def _make_booking_for_write(self, prev_state):
+        """Build an iterable FreightBooking with helpers patched."""
+        booking = _IterableFreightBooking.__new__(_IterableFreightBooking)
+        booking.name = 'FB/2026/001'
+        booking.state = prev_state
+        booking.actual_rate = 0
+        booking.po_ids = []
+        booking.pod_attachment_id = None
+        booking.carrier_id = FakeCarrier(api_key='key123')
+        booking.id = 1
+        booking.document_ids = FakeDocumentSet([])
+
+        env = FakeEnv(adapter=None)
+        booking.env = env
+        booking.with_context = lambda **kw: booking
+        booking._chatter = []
+        booking.message_post = lambda body='', message_type='comment', subtype_xmlid=None: (
+            booking._chatter.append(body)
+        )
+
+        booking._auto_fetch_calls = []
+        booking._invoice_calls = []
+
+        def fake_auto_fetch(doc_types=None):
+            booking._auto_fetch_calls.append(doc_types)
+            return True
+
+        def fake_auto_invoice():
+            booking._invoice_calls.append(True)
+            return True
+
+        booking._auto_fetch_documents = fake_auto_fetch
+        booking._auto_fetch_invoice = fake_auto_invoice
+        return booking
+
+    def test_delivered_transition_calls_auto_fetch_documents(self):
+        """write() to delivered must call _auto_fetch_documents(doc_types=None)."""
+        from unittest.mock import patch
+        booking = self._make_booking_for_write('arrived_port')
+
+        with patch('odoo.models.Model.write', return_value=True):
+            booking.write({'state': 'delivered'})
+
+        assert booking._auto_fetch_calls == [None]
+
+    def test_delivered_transition_calls_auto_fetch_invoice(self):
+        """write() to delivered must also call _auto_fetch_invoice()."""
+        from unittest.mock import patch
+        booking = self._make_booking_for_write('arrived_port')
+
+        with patch('odoo.models.Model.write', return_value=True):
+            booking.write({'state': 'delivered'})
+
+        assert len(booking._invoice_calls) == 1
+
+    def test_arrived_port_transition_calls_fetch_documents_not_invoice(self):
+        """write() to arrived_port must call _auto_fetch_documents but NOT _auto_fetch_invoice."""
+        from unittest.mock import patch
+        booking = self._make_booking_for_write('in_transit')
+
+        with patch('odoo.models.Model.write', return_value=True):
+            booking.write({'state': 'arrived_port'})
+
+        assert booking._auto_fetch_calls == [['customs', 'packing_list', 'label']]
+        assert booking._invoice_calls == []
+
+    def test_no_trigger_when_state_unchanged(self):
+        """write() must not call helpers when prev state equals new state."""
+        from unittest.mock import patch
+        booking = self._make_booking_for_write('delivered')  # already delivered
+
+        with patch('odoo.models.Model.write', return_value=True):
+            booking.write({'state': 'delivered'})
+
+        assert booking._auto_fetch_calls == []
+        assert booking._invoice_calls == []
+
+    def test_non_state_write_does_not_trigger(self):
+        """write() with no state key must not call helpers."""
+        from unittest.mock import patch
+        booking = self._make_booking_for_write('in_transit')
+
+        with patch('odoo.models.Model.write', return_value=True):
+            booking.write({'actual_rate': 500.0})
+
+        assert booking._auto_fetch_calls == []
+        assert booking._invoice_calls == []
