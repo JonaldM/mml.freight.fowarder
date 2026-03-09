@@ -11,7 +11,7 @@
                     <field name="tender_count" widget="statinfo" string="Freight Tender"/>
                 </button>
             </xpath>
-            <xpath expr="//page[@name='purchase_delivery_bill']" position="after">
+            <xpath expr="//page[@name='purchase_delivery_invoice']" position="after">
                 <page string="Freight" name="freight_page" invisible="freight_responsibility == 'na'">
                     <group>
                         <group string="Responsibility">

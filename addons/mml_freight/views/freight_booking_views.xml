@@ -26,7 +26,7 @@
                 <field name="vessel_name" string="Vessel" optional="hide" class="font-monospace"/>
                 <field name="container_number" string="Container" optional="hide" class="font-monospace"/>
                 <field name="awb_number" string="AWB" optional="hide" class="font-monospace"/>
-                <field name="purchase_order_id" string="PO" optional="show"/>
+                <field name="po_ids" string="POs" widget="many2many_tags" optional="show"/>
                 <field name="eta" string="ETA" optional="show"/>
                 <field name="actual_delivery_date" string="Delivered" optional="hide"/>
                 <field name="transit_days_actual" string="Transit Days" optional="hide"/>
@@ -67,7 +67,7 @@
                 <field name="vessel_name"/>
                 <field name="container_number"/>
                 <field name="awb_number"/>
-                <field name="purchase_order_id"/>
+                <field name="po_ids"/>
                 <field name="origin_country_id"/>
                 <field name="dest_country_id"/>
                 <field name="dest_port"/>
@@ -84,19 +84,19 @@
                             <t t-if="record.data.transport_mode">
                                 <span t-attf-class="badge o_freight_mode_badge o_mode_#{record.data.transport_mode}">
                                     <t t-if="record.data.transport_mode in ['sea_lcl','sea_fcl']">
-                                        <i class="fa fa-ship"/>&#160;
+                                        <i class="fa fa-ship" title="Sea"/>&#160;
                                     </t>
                                     <t t-elif="record.data.transport_mode == 'air'">
-                                        <i class="fa fa-plane"/>&#160;
+                                        <i class="fa fa-plane" title="Air"/>&#160;
                                     </t>
                                     <t t-elif="record.data.transport_mode == 'road'">
-                                        <i class="fa fa-truck"/>&#160;
+                                        <i class="fa fa-truck" title="Road"/>&#160;
                                     </t>
                                     <t t-elif="record.data.transport_mode == 'rail'">
-                                        <i class="fa fa-subway"/>&#160;
+                                        <i class="fa fa-subway" title="Rail"/>&#160;
                                     </t>
                                     <t t-else="">
-                                        <i class="fa fa-bolt"/>&#160;
+                                        <i class="fa fa-bolt" title="Express"/>&#160;
                                     </t>
                                     <t t-esc="record.transport_mode.value"/>
                                 </span>
@@ -105,7 +105,7 @@
 
                         <!-- ── Row 2: Carrier + booking ref ── -->
                         <div class="small text-muted">
-                            <i class="fa fa-building-o me-1"/>
+                            <i class="fa fa-building-o me-1" title="Carrier"/>
                             <t t-esc="record.carrier_id.value"/>
                             <t t-if="record.carrier_booking_id.value">
                                 <span class="font-monospace text-secondary ms-1">
@@ -131,7 +131,7 @@
                         <!-- ── Row 4: Vessel / Container or AWB ── -->
                         <t t-if="record.vessel_name.value">
                             <div class="o_freight_card_vessel small text-muted">
-                                <i class="fa fa-anchor me-1"/>
+                                <i class="fa fa-anchor me-1" title="Vessel"/>
                                 <t t-esc="record.vessel_name.value"/>
                                 <t t-if="record.container_number.value">
                                     <span class="ms-1">/ <t t-esc="record.container_number.value"/></span>
@@ -140,23 +140,23 @@
                         </t>
                         <t t-elif="record.awb_number.value">
                             <div class="o_freight_card_awb small text-muted">
-                                <i class="fa fa-barcode me-1"/>
+                                <i class="fa fa-barcode me-1" title="AWB"/>
                                 <t t-esc="record.awb_number.value"/>
                             </div>
                         </t>
 
                         <!-- ── Row 5: PO reference ── -->
-                        <t t-if="record.purchase_order_id.value">
+                        <t t-if="record.po_ids.value">
                             <div class="small text-muted">
-                                <i class="fa fa-file-text-o me-1"/>
-                                <t t-esc="record.purchase_order_id.value"/>
+                                <i class="fa fa-file-text-o me-1" title="PO"/>
+                                <t t-esc="record.po_ids.value"/>
                             </div>
                         </t>
 
                         <!-- ── Row 6: ETA (if set) ── -->
                         <t t-if="record.eta.value">
                             <div class="o_freight_card_eta d-flex align-items-center gap-1">
-                                <i class="fa fa-calendar-check-o text-muted"/>
+                                <i class="fa fa-calendar-check-o text-muted" title="ETA"/>
                                 <span class="small fw-semibold">ETA&#160;<t t-esc="record.eta.value"/></span>
                             </div>
                         </t>
@@ -237,7 +237,7 @@
                     <group>
                         <group string="Booking">
                             <field name="carrier_id"/>
-                            <field name="purchase_order_id"/>
+                            <field name="po_ids" widget="many2many_tags"/>
                             <field name="tender_id"/>
                             <field name="carrier_booking_id"/>
                             <field name="carrier_shipment_id"/>
@@ -250,7 +250,6 @@
                             <field name="actual_delivery_date"/>
                             <field name="transit_days_actual" readonly="1"/>
                             <field name="on_time" widget="boolean_toggle" readonly="1"/>
-                            <field name="tpl_message_id" readonly="1"/>
                         </group>
                     </group>
                     <group>

@@ -46,11 +46,17 @@ class PurchaseOrder(models.Model):
         string='Freight Status',
         readonly=True,
     )
+    freight_cost_currency_id = fields.Many2one(
+        'res.currency',
+        related='freight_tender_id.booking_id.currency_id',
+        string='Freight Currency',
+        readonly=True,
+    )
     freight_cost = fields.Monetary(
         related='freight_tender_id.booking_id.booked_rate',
         string='Freight Cost',
         readonly=True,
-        currency_field='freight_tender_id.booking_id.currency_id',
+        currency_field='freight_cost_currency_id',
     )
     freight_carrier_name = fields.Char(
         related='freight_tender_id.booking_id.carrier_id.name',
