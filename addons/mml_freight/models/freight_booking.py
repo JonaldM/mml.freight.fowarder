@@ -455,6 +455,10 @@ class FreightBooking(models.Model):
         The cron safety net will retry any failed fetches.
         """
         prev_states = {rec.id: rec.state for rec in self}
+
+        if self.env.context.get('_auto_fetch_in_progress'):
+            return super().write(vals)
+
         result = super().write(vals)
 
         new_state = vals.get('state')
@@ -466,22 +470,48 @@ class FreightBooking(models.Model):
             if prev == new_state:
                 continue  # no real transition
 
-            try:
-                if new_state == 'arrived_port':
-                    rec._auto_fetch_documents(doc_types=['customs', 'packing_list', 'label'])
-                elif new_state == 'delivered':
-                    rec._auto_fetch_documents(doc_types=None)
-                    rec._auto_fetch_invoice()
-            except Exception as exc:
-                _logger.warning(
-                    'Auto-fetch failed on state transition to %s for booking %s: %s',
-                    new_state, rec.name, exc,
-                )
-                rec.message_post(
-                    body=f'Auto-fetch failed on transition to {new_state}, will retry via cron.',
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_note',
-                )
+            if new_state == 'arrived_port':
+                try:
+                    rec.with_context(_auto_fetch_in_progress=True)._auto_fetch_documents(
+                        doc_types=['customs', 'packing_list', 'label'],
+                    )
+                except Exception as exc:
+                    _logger.warning(
+                        'Auto-fetch documents failed on transition to %s for booking %s: %s',
+                        new_state, rec.name, exc,
+                    )
+                    rec.message_post(
+                        body=f'Auto-fetch failed on transition to {new_state}, will retry via cron.',
+                        message_type='comment',
+                        subtype_xmlid='mail.mt_note',
+                    )
+            elif new_state == 'delivered':
+                try:
+                    rec.with_context(_auto_fetch_in_progress=True)._auto_fetch_documents(
+                        doc_types=None,
+                    )
+                except Exception as exc:
+                    _logger.warning(
+                        'Auto-fetch documents failed on transition to %s for booking %s: %s',
+                        new_state, rec.name, exc,
+                    )
+                    rec.message_post(
+                        body=f'Auto-fetch failed on transition to {new_state}, will retry via cron.',
+                        message_type='comment',
+                        subtype_xmlid='mail.mt_note',
+                    )
+                try:
+                    rec.with_context(_auto_fetch_in_progress=True)._auto_fetch_invoice()
+                except Exception as exc:
+                    _logger.warning(
+                        'Auto-fetch invoice failed on transition to %s for booking %s: %s',
+                        new_state, rec.name, exc,
+                    )
+                    rec.message_post(
+                        body='Invoice fetch failed on delivery transition, will retry via cron.',
+                        message_type='comment',
+                        subtype_xmlid='mail.mt_note',
+                    )
 
         return result
 
