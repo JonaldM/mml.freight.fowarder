@@ -7,6 +7,7 @@ from odoo.addons.mml_freight.models.freight_adapter_registry import register_ada
 
 _logger = logging.getLogger(__name__)
 _counter = itertools.count(1)
+_PDF_STUB = b'%PDF-1.0\n1 0 obj<</Type /Catalog>>endobj\nxref\n0 0\ntrailer<</Root 1 0 R>>\nstartxref\n9\n%%EOF'
 
 
 @register_adapter('mainfreight')
@@ -98,8 +99,6 @@ class MFMockAdapter(FreightAdapterBase):
     def get_documents(self, booking):
         if not self._uat():
             return self._live().get_documents(booking)
-        # Minimal valid PDF header — enough for Odoo to store as attachment
-        _PDF_STUB = b'%PDF-1.0\n1 0 obj<</Type /Catalog>>endobj\nxref\n0 0\ntrailer<</Root 1 0 R>>\nstartxref\n9\n%%EOF'
         return [
             {
                 'doc_type': 'pod',

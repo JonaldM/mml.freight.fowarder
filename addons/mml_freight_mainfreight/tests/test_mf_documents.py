@@ -70,10 +70,7 @@ class TestMFMockAdapterDocuments:
     def test_get_invoice_uat_has_required_keys(self):
         adapter = self._make_adapter()
         result = adapter.get_invoice(FakeBooking())
-        assert 'carrier_invoice_ref' in result
-        assert 'amount' in result
-        assert 'currency' in result
-        assert 'invoice_date' in result
+        assert {'carrier_invoice_ref', 'amount', 'currency', 'invoice_date'} <= result.keys()
 
     def test_get_invoice_uat_amount_is_positive(self):
         adapter = self._make_adapter()
