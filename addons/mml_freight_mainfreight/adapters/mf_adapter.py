@@ -6,9 +6,9 @@ import requests
 from odoo.exceptions import UserError
 from odoo.addons.mml_freight.adapters.base_adapter import FreightAdapterBase
 from odoo.addons.mml_freight_mainfreight.adapters.mf_auth import (
-    get_base_url,
-    get_headers,
-    TRACKING_PATH,
+    get_base_url, get_headers,
+    TRACKING_PATH, TRACKING_CURRENT_PATH,
+    DOCUMENTS_PATH, INVOICE_PATH,
 )
 
 _logger = logging.getLogger(__name__)
@@ -278,6 +278,106 @@ class MFAdapter(FreightAdapterBase):
             })
 
         return normalised
+
+    def _extract_pod_urls(self, tracking_data):
+        """Extract POD download URLs from Mainfreight tracking API response.
+
+        The tracking response may contain a list of document URLs under various
+        keys (e.g. 'podUrls', 'documents'). Returns a flat list of URL strings.
+        This method is intentionally defensive — MF API shape is not yet confirmed.
+        """
+        urls = []
+        if not isinstance(tracking_data, dict):
+            return urls
+        for key in ('podUrls', 'podUrl', 'documents', 'attachments'):
+            value = tracking_data.get(key)
+            if isinstance(value, list):
+                urls.extend(v for v in value if isinstance(v, str) and v.startswith('http'))
+            elif isinstance(value, str) and value.startswith('http'):
+                urls.append(value)
+        return urls
+
+    def _fetch_carrier_documents(self, booking):
+        """Fetch BOL, customs, packing list from Mainfreight Documents API.
+
+        Not yet implemented — endpoint path unconfirmed pending MF developer account.
+        Returns [] so callers degrade gracefully.
+        """
+        # implement once MF developer account is active — endpoint path unconfirmed
+        raise NotImplementedError(
+            'Mainfreight Documents API endpoint not yet confirmed. '
+            'Returning empty list for graceful degradation.'
+        )
+
+    def get_documents(self, booking):
+        """Fetch available documents for this booking.
+
+        1. Calls the tracking current endpoint to extract POD URLs from the response.
+        2. Downloads each POD URL's bytes using the same API key auth.
+        3. Calls _fetch_carrier_documents() for BOL/customs/packing list — returns []
+           until MF developer account is active and endpoint is confirmed.
+
+        Returns list of dicts: {doc_type, bytes, filename, carrier_doc_ref}
+        """
+        docs = []
+
+        ref = self._resolve_reference(booking)
+        if ref:
+            ref_type, ref_value = ref
+            url = f'{get_base_url(self.carrier)}{TRACKING_CURRENT_PATH}'
+            params = {'referenceType': ref_type, 'referenceValue': ref_value}
+            try:
+                resp = requests.get(
+                    url, headers=get_headers(self.carrier), params=params, timeout=30,
+                )
+                if resp.ok:
+                    try:
+                        data = resp.json()
+                    except ValueError:
+                        data = {}
+                    pod_urls = self._extract_pod_urls(data)
+                    for i, pod_url in enumerate(pod_urls, start=1):
+                        try:
+                            pod_resp = requests.get(
+                                pod_url, headers=get_headers(self.carrier), timeout=60,
+                            )
+                            if pod_resp.ok:
+                                docs.append({
+                                    'doc_type': 'pod',
+                                    'bytes': pod_resp.content,
+                                    'filename': f'POD-{booking.name}-{i}.pdf',
+                                    'carrier_doc_ref': pod_url,
+                                })
+                        except requests.RequestException as exc:
+                            _logger.warning(
+                                'MF: failed to download POD URL for booking %s: %s',
+                                booking.name, exc,
+                            )
+            except requests.RequestException as exc:
+                _logger.warning(
+                    'MF get_documents: tracking request failed for booking %s: %s',
+                    booking.name, exc,
+                )
+
+        try:
+            carrier_docs = self._fetch_carrier_documents(booking)
+            docs.extend(carrier_docs)
+        except NotImplementedError:
+            pass
+
+        return docs
+
+    def get_invoice(self, booking):
+        """Fetch freight invoice from Mainfreight.
+
+        Returns dict {carrier_invoice_ref, amount, currency, invoice_date} or None.
+        Stub — returns None until MF invoice API endpoint is confirmed.
+        """
+        # implement once MF developer account is active — endpoint path unconfirmed
+        _logger.info(
+            'MF get_invoice: invoice API not yet implemented for booking %s', booking.name,
+        )
+        return None
 
     def handle_webhook(self, body):
         """Process Mainfreight Subscription API TrackingUpdate webhook.
