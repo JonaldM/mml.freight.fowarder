@@ -9,6 +9,8 @@ MF_UAT_URL = 'https://apitest.mainfreight.com'
 
 TRACKING_PATH = '/tracking/2.0/references/events'
 TRACKING_CURRENT_PATH = '/tracking/2.0/references'
+DOCUMENTS_PATH = '/documents/2.0/references'   # unconfirmed — stub until MF developer account active
+INVOICE_PATH   = '/invoices/2.0/references'    # unconfirmed — stub until MF developer account active
 
 
 def get_base_url(carrier):
