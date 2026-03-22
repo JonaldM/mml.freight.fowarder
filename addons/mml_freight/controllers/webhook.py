@@ -35,7 +35,7 @@ def _validate_webhook_signature(carrier, body_bytes):
 
 class FreightWebhookController(http.Controller):
 
-    @http.route('/freight/webhook/<int:carrier_id>', type='json', auth='none', csrf=False)
+    @http.route('/freight/webhook/<int:carrier_id>', type='jsonrpc', auth='none', csrf=False)
     def freight_webhook(self, carrier_id, **kwargs):
         """Generic webhook entry point — dispatches to carrier adapter.
 

@@ -35,7 +35,7 @@ def _validate_dsv_signature(carrier, body_bytes):
 
 class DsvWebhookController(http.Controller):
 
-    @http.route('/dsv/webhook/<int:carrier_id>', type='json', auth='none', csrf=False, methods=['POST'])
+    @http.route('/dsv/webhook/<int:carrier_id>', type='jsonrpc', auth='none', csrf=False, methods=['POST'])
     def dsv_webhook(self, carrier_id, **kwargs):
         """DSV webhook receiver. Validates HMAC signature before processing.
 

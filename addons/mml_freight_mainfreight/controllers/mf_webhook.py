@@ -53,7 +53,7 @@ def _find_carrier(env):
 
 class MFWebhookController(http.Controller):
 
-    @http.route('/mainfreight/webhook', type='json', auth='none', csrf=False, methods=['POST'])
+    @http.route('/mainfreight/webhook', type='jsonrpc', auth='none', csrf=False, methods=['POST'])
     def mf_webhook(self, **kwargs):
         """Mainfreight Subscription API webhook receiver.
 

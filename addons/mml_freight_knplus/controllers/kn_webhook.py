@@ -29,7 +29,7 @@ _KN_AUTH_HEADER = 'X-KN-Signature'
 
 class KnWebhookController(http.Controller):
 
-    @http.route('/knplus/webhook/<int:carrier_id>', type='json', auth='none', csrf=False, methods=['POST'])
+    @http.route('/knplus/webhook/<int:carrier_id>', type='jsonrpc', auth='none', csrf=False, methods=['POST'])
     def kn_webhook(self, carrier_id, **kwargs):
         """K+N Shipment Status Push webhook receiver.
 
