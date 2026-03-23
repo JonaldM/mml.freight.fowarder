@@ -63,6 +63,28 @@ _fb_module = _load_module_from_file(
 )
 FreightBooking = _fb_module.FreightBooking
 
+# Register the base module under its canonical odoo.addons path so that
+# extension sub-modules can import BOOKING_STATES / _DSV_BOOKING_STATE_MAP from it.
+sys.modules.setdefault('odoo.addons.mml_freight.models.freight_booking', _fb_module)
+
+# Load extension modules and copy their methods onto FreightBooking so that
+# direct-file-load tests can call them without Odoo's ORM registry.
+_fb_docs_module = _load_module_from_file(
+    'mml_freight.models.freight_booking_documents_isolated',
+    _MODELS_DIR / 'freight_booking_documents.py',
+)
+for _name, _method in vars(_fb_docs_module.FreightBookingDocuments).items():
+    if callable(_method) and not _name.startswith('__'):
+        setattr(FreightBooking, _name, _method)
+
+_fb_cron_module = _load_module_from_file(
+    'mml_freight.models.freight_booking_cron_isolated',
+    _MODELS_DIR / 'freight_booking_cron.py',
+)
+for _name, _method in vars(_fb_cron_module.FreightBookingCron).items():
+    if callable(_method) and not _name.startswith('__'):
+        setattr(FreightBooking, _name, _method)
+
 
 # ---------------------------------------------------------------------------
 # Fake objects

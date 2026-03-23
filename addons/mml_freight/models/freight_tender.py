@@ -275,7 +275,7 @@ class FreightTender(models.Model):
             def best_value_score(q):
                 cost_score = q.rank_by_cost or 99
                 reliability = q.carrier_id.reliability_score or 50
-                return cost_score * 0.6 + (100 - reliability) * 0.4 / 10
+                return cost_score * 0.6 + ((100 - reliability) * 0.4) / 10
             winner = received.sorted(best_value_score)[0]
             reason = f'Auto-selected: best value (cost rank {winner.rank_by_cost}, reliability {winner.carrier_id.reliability_score:.0f})'
         elif mode == 'contract_aware':

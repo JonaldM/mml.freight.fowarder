@@ -1,6 +1,7 @@
 import logging
 
 from odoo.addons.mml_freight.adapters.base_adapter import FreightAdapterBase
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -70,7 +71,10 @@ class KnAdapter(FreightAdapterBase):
           GET /documents/search/{shipment_id}
           Download HBL, AWB, POD, customs declaration, packing list.
         """
-        return []
+        raise UserError(
+            'K+N document retrieval API not yet implemented. '
+            'Pending K+N API onboarding — see fowarder.docs/KN-API-Integration-Guide.md.'
+        )
 
     def handle_webhook(self, body):
         """Process K+N Shipment Status Push webhook payload.

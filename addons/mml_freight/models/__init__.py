@@ -3,6 +3,11 @@ from . import freight_tender
 from . import freight_tender_package
 from . import freight_tender_quote
 from . import freight_booking
+from . import freight_booking_documents
+from . import freight_booking_landed_cost
+from . import freight_booking_3pl
+from . import freight_booking_cron
+from . import freight_booking_webhook
 from . import freight_tracking_event
 from . import freight_document
 from . import freight_webhook_event
