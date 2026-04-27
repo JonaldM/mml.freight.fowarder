@@ -9,6 +9,7 @@
     'depends': ['mml_freight'],
     'data': [
         'security/ir.model.access.csv',
+        'data/delivery_carrier_data.xml',
         'views/freight_carrier_knplus_views.xml',
     ],
     'installable': True,

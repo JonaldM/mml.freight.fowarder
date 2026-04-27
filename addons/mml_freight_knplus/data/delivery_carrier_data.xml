@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!--
+        K+N integration is a scaffold (see addons/mml_freight_knplus/adapters/kn_adapter.py).
+        Pre-seeded K+N carrier rows MUST default to active=False so operators do not
+        accidentally tender real freight against the K+N adapter before onboarding
+        is complete. Activation procedure: see addons/mml_freight_knplus/README.md.
+    -->
+    <record id="carrier_knplus_default" model="delivery.carrier">
+        <field name="name">K+N (pending onboarding)</field>
+        <field name="delivery_type">knplus</field>
+        <field name="active" eval="False"/>
+        <field name="auto_tender" eval="False"/>
+        <field name="x_knplus_environment">sandbox</field>
+        <field name="x_knplus_quote_mode">manual</field>
+        <field name="product_id" ref="delivery.product_product_delivery"/>
+    </record>
+</odoo>
