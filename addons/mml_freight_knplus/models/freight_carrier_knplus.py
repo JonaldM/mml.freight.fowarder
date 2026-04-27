@@ -29,6 +29,17 @@ def _knplus_enabled():
 class FreightCarrierKnplus(models.Model):
     _inherit = 'delivery.carrier'
 
+    # Register 'knplus' as a valid delivery_type so the gated K+N carrier
+    # records (delivery_carrier_data.xml, all active=False at install) can
+    # be loaded by Odoo's data importer. The activation gate below
+    # (create/write overrides) is what prevents accidental enablement —
+    # registering the selection here only makes the value addressable; it
+    # does not relax the safety check.
+    delivery_type = fields.Selection(
+        selection_add=[('knplus', 'K+N (pending onboarding)')],
+        ondelete={'knplus': 'set default'},
+    )
+
     # --- Auth credentials (TBC: API key vs OAuth 2.0 — confirm with K+N rep) ---
     x_knplus_client_id = fields.Char(
         'K+N OAuth Client ID',
