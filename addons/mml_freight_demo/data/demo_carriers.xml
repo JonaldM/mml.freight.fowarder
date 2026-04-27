@@ -13,6 +13,12 @@
     <record id="carrier_knplus_sea_lcl" model="delivery.carrier">
         <field name="name">K+N Sea LCL Global</field>
         <field name="delivery_type">knplus</field>
+        <!--
+            Pre-seeded inactive: K+N integration is a scaffold (UserError-raising
+            adapter). Operators must not tender real freight here until K+N
+            onboarding is complete. See addons/mml_freight_knplus/README.md.
+        -->
+        <field name="active" eval="False"/>
         <field name="auto_tender">False</field>
         <field name="transport_modes">sea_lcl</field>
         <field name="reliability_score">82.0</field>
