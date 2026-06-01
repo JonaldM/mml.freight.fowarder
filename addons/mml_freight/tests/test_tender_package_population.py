@@ -7,9 +7,11 @@ class TestTenderPackagePopulation(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.supplier = cls.env['res.partner'].create({'name': 'Pop Supplier'})
+        # Odoo 17+ removed type='product'; storable products use type='consu' + is_storable=True.
         cls.product = cls.env['product.product'].create({
             'name': 'Widget',
-            'type': 'product',
+            'type': 'consu',
+            'is_storable': True,
             'x_freight_length': 30.0,
             'x_freight_width': 20.0,
             'x_freight_height': 10.0,

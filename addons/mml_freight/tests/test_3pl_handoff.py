@@ -114,10 +114,12 @@ class Test3plHandoff(TransactionCase):
         specific = self._make_connector(warehouse, priority=10, categories=[chilled_cat])
         _catchall = self._make_connector(warehouse, priority=5)  # lower priority but no category match
 
+        # Odoo 17+ removed type='product'; storable products use type='consu' + is_storable=True.
         product = self.env['product.product'].create({
             'name': 'Chilled Product',
             'categ_id': chilled_cat.id,
-            'type': 'product',
+            'type': 'consu',
+            'is_storable': True,
         })
         po = self.env['purchase.order'].create({
             'partner_id': self.partner.id,
@@ -150,10 +152,12 @@ class Test3plHandoff(TransactionCase):
         _specific_other = self._make_connector(warehouse, priority=10, categories=[other_cat])
         catchall = self._make_connector(warehouse, priority=10)  # no categories = catch-all
 
+        # Odoo 17+ removed type='product'; storable products use type='consu' + is_storable=True.
         product = self.env['product.product'].create({
             'name': 'Frozen Product',
             'categ_id': frozen_cat.id,
-            'type': 'product',
+            'type': 'consu',
+            'is_storable': True,
         })
         po = self.env['purchase.order'].create({
             'partner_id': self.partner.id,

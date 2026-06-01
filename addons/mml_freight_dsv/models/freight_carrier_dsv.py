@@ -12,6 +12,20 @@ _SUBKEY_SERVICES = ('quote', 'booking', 'doc_upload', 'doc_download', 'visibilit
 class FreightCarrierDsv(models.Model):
     _inherit = 'delivery.carrier'
 
+    # Register DSV delivery_type values on the delivery.carrier selection field.
+    # Odoo 19 requires selection_add + ondelete on the inheriting module — without
+    # this the ORM rejects 'dsv_generic' / 'dsv_xpress' as invalid values.
+    delivery_type = fields.Selection(
+        selection_add=[
+            ('dsv_generic', 'DSV Generic (Road/Air/Sea/Rail)'),
+            ('dsv_xpress', 'DSV XPress (Courier)'),
+        ],
+        ondelete={
+            'dsv_generic': 'set default',
+            'dsv_xpress': 'set default',
+        },
+    )
+
     x_dsv_product_name = fields.Selection(
         [('road', 'Road'), ('air', 'Air'), ('sea', 'Sea'), ('rail', 'Rail')],
         string='DSV Product',

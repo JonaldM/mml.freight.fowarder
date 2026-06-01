@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Odoo 17+ removed type='product'; storable products use type='consu' + is_storable=True. -->
     <record id="product_dog_food_20kg" model="product.template">
         <field name="name">Dog Food 20kg</field>
         <field name="default_code">EPC-DOG-20</field>
-        <field name="type">product</field>
+        <field name="type">consu</field>
+        <field name="is_storable" eval="True"/>
         <field name="weight">20.0</field>
         <field name="x_freight_length">40.0</field>
         <field name="x_freight_width">30.0</field>
@@ -13,7 +15,8 @@
     <record id="product_cat_food_5kg" model="product.template">
         <field name="name">Cat Food 5kg</field>
         <field name="default_code">EPC-CAT-5</field>
-        <field name="type">product</field>
+        <field name="type">consu</field>
+        <field name="is_storable" eval="True"/>
         <field name="weight">5.0</field>
         <field name="x_freight_length">25.0</field>
         <field name="x_freight_width">20.0</field>
@@ -23,7 +26,8 @@
     <record id="product_bird_seed_10kg" model="product.template">
         <field name="name">Bird Seed 10kg</field>
         <field name="default_code">EPC-BIRD-10</field>
-        <field name="type">product</field>
+        <field name="type">consu</field>
+        <field name="is_storable" eval="True"/>
         <field name="weight">10.0</field>
         <field name="x_freight_length">30.0</field>
         <field name="x_freight_width">25.0</field>

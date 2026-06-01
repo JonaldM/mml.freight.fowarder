@@ -6,7 +6,7 @@
     'author': 'MML Consumer Products Ltd',
     'website': 'https://www.mmlconsumerproducts.co.nz',
     'license': 'LGPL-3',
-    'depends': ['mml_freight', 'purchase'],
+    'depends': ['mml_freight', 'delivery', 'purchase'],
     'data': [
         'security/ir.model.access.csv',
         'data/ir_cron.xml',

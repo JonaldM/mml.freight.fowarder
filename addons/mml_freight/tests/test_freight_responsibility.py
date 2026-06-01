@@ -5,7 +5,8 @@ class TestFreightResponsibility(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.partner = cls.env['res.partner'].create({'name': 'Resp Supplier', 'supplier_rank': 1})
-        cls.product = cls.env['product.product'].create({'name': 'Test Prod', 'type': 'product'})
+        # Odoo 17+ removed type='product'; storable products use type='consu' + is_storable=True.
+        cls.product = cls.env['product.product'].create({'name': 'Test Prod', 'type': 'consu', 'is_storable': True})
 
     def _make_po(self, code):
         inc = self.env['account.incoterms'].search([('code', '=', code)], limit=1)

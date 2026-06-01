@@ -2,8 +2,11 @@
 
 import hashlib
 import json
+import os
 from unittest.mock import patch, MagicMock
 from odoo.tests.common import TransactionCase, HttpCase
+
+from odoo.addons.mml_freight_knplus.models.freight_carrier_knplus import KNPLUS_ENABLE_ENV_VAR
 
 
 class TestKNWebhookDedup(TransactionCase):
@@ -11,12 +14,22 @@ class TestKNWebhookDedup(TransactionCase):
 
     @classmethod
     def setUpClass(cls):
+        cls._knplus_was_set = os.environ.get(KNPLUS_ENABLE_ENV_VAR)
+        os.environ[KNPLUS_ENABLE_ENV_VAR] = '1'
         super().setUpClass()
         cls.carrier = cls.env['delivery.carrier'].create({
             'name': 'K+N Webhook Test',
             'delivery_type': 'knplus',
             'x_knplus_environment': 'sandbox',
         })
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        if cls._knplus_was_set is None:
+            os.environ.pop(KNPLUS_ENABLE_ENV_VAR, None)
+        else:
+            os.environ[KNPLUS_ENABLE_ENV_VAR] = cls._knplus_was_set
 
     def _build_payload(self, event_type='ShipmentUpdate'):
         return {'eventType': event_type, 'shipmentId': 'KN-SHP-001'}
@@ -72,12 +85,22 @@ class TestKNWebhookAdapterDispatch(TransactionCase):
 
     @classmethod
     def setUpClass(cls):
+        cls._knplus_was_set = os.environ.get(KNPLUS_ENABLE_ENV_VAR)
+        os.environ[KNPLUS_ENABLE_ENV_VAR] = '1'
         super().setUpClass()
         cls.carrier = cls.env['delivery.carrier'].create({
             'name': 'K+N Dispatch Test',
             'delivery_type': 'knplus',
             'x_knplus_environment': 'sandbox',
         })
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        if cls._knplus_was_set is None:
+            os.environ.pop(KNPLUS_ENABLE_ENV_VAR, None)
+        else:
+            os.environ[KNPLUS_ENABLE_ENV_VAR] = cls._knplus_was_set
 
     def test_webhook_routes_to_adapter(self):
         """Webhook controller calls adapter.handle_webhook() with the parsed body."""

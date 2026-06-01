@@ -243,5 +243,8 @@ def pytest_collection_modifyitems(config, items):
         if isinstance(item, pytest.Class):
             continue
         cls = getattr(item, 'cls', None)
-        if cls is not None and issubclass(cls, TransactionCase):
+        # Guard: issubclass() requires a real class as its first argument.
+        # pytest.DoctestItem and other non-Function item types can expose
+        # cls values that are not Python class objects, causing TypeError.
+        if cls is not None and isinstance(cls, type) and issubclass(cls, TransactionCase):
             item.add_marker(pytest.mark.odoo_integration)

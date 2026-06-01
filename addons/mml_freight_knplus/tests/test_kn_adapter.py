@@ -1,7 +1,10 @@
 """Tests for mml_freight_knplus — mock adapter behaviour and registration."""
 
+import os
 from odoo.tests.common import TransactionCase
 from odoo.exceptions import UserError
+
+from odoo.addons.mml_freight_knplus.models.freight_carrier_knplus import KNPLUS_ENABLE_ENV_VAR
 
 
 class TestKNMockAdapterSandbox(TransactionCase):
@@ -9,6 +12,11 @@ class TestKNMockAdapterSandbox(TransactionCase):
 
     @classmethod
     def setUpClass(cls):
+        # Activate the K+N adapter for the duration of these tests.
+        # The gate (MML_KNPLUS_ENABLE) exists to prevent accidental production use;
+        # integration tests must set it so the ORM create/write guards pass.
+        cls._knplus_was_set = os.environ.get(KNPLUS_ENABLE_ENV_VAR)
+        os.environ[KNPLUS_ENABLE_ENV_VAR] = '1'
         super().setUpClass()
         cls.carrier = cls.env['delivery.carrier'].create({
             'name': 'K+N Test',
@@ -16,6 +24,15 @@ class TestKNMockAdapterSandbox(TransactionCase):
             'x_knplus_environment': 'sandbox',
             'x_knplus_quote_mode': 'manual',
         })
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        # Restore env var to its pre-test state.
+        if cls._knplus_was_set is None:
+            os.environ.pop(KNPLUS_ENABLE_ENV_VAR, None)
+        else:
+            os.environ[KNPLUS_ENABLE_ENV_VAR] = cls._knplus_was_set
 
     def _get_adapter(self):
         from odoo.addons.mml_freight_knplus.adapters.kn_mock_adapter import KnMockAdapter
@@ -100,6 +117,20 @@ class TestKNMockAdapterSandbox(TransactionCase):
 
 class TestKNAdapterRegistration(TransactionCase):
     """Verify the adapter registry correctly resolves 'knplus'."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._knplus_was_set = os.environ.get(KNPLUS_ENABLE_ENV_VAR)
+        os.environ[KNPLUS_ENABLE_ENV_VAR] = '1'
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        if cls._knplus_was_set is None:
+            os.environ.pop(KNPLUS_ENABLE_ENV_VAR, None)
+        else:
+            os.environ[KNPLUS_ENABLE_ENV_VAR] = cls._knplus_was_set
 
     def test_adapter_registry_resolves_knplus(self):
         """FreightAdapterRegistry.get_adapter() returns KnMockAdapter for 'knplus' carrier."""

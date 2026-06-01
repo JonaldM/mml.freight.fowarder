@@ -21,7 +21,7 @@
     'author': 'MML Consumer Products Ltd',
     'website': 'https://www.mmlconsumerproducts.co.nz',
     'license': 'LGPL-3',
-    'depends': ['mml_freight'],
+    'depends': ['mml_freight', 'delivery'],
     'data': [
         'security/ir.model.access.csv',
         'views/freight_carrier_mainfreight_views.xml',

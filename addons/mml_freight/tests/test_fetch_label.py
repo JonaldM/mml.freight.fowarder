@@ -14,7 +14,9 @@ class TestFetchLabel(TransactionCase):
             'name': 'Label Test Carrier',
             'product_id': cls.env['product.product'].search([], limit=1).id,
             'delivery_type': 'dsv_generic',
-            'x_dsv_environment': 'demo',
+            # x_dsv_environment is defined by mml_freight_dsv, not mml_freight.
+            # When running mml_freight tests in isolation, this field is absent.
+            # The adapter is patched out anyway, so the environment value is irrelevant.
         })
         tender = cls.env['freight.tender'].create({
             'po_ids': [(4, cls.po.id)],

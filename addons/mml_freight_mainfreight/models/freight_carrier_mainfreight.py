@@ -8,6 +8,14 @@ _logger = logging.getLogger(__name__)
 class FreightCarrierMainfreight(models.Model):
     _inherit = 'delivery.carrier'
 
+    # Register 'mainfreight' as a valid delivery_type value on delivery.carrier.
+    # Odoo 19 requires selection_add + ondelete in the inheriting module — without
+    # this the ORM rejects 'mainfreight' as an invalid selection value.
+    delivery_type = fields.Selection(
+        selection_add=[('mainfreight', 'Mainfreight A&O')],
+        ondelete={'mainfreight': 'set default'},
+    )
+
     # --- API credentials ---
     x_mf_api_key = fields.Char(
         'Mainfreight API Key',
