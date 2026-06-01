@@ -1,6 +1,6 @@
 {
     'name': 'MML Freight Orchestration',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Inventory/Inventory',
     'summary': 'Freight tender, quote, booking and tracking for inbound POs',
     'author': 'MML Consumer Products Ltd',
