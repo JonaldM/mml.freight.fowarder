@@ -61,6 +61,11 @@ class TestPoFormFields(TransactionCase):
         Bug: freight_cost uses currency_field='currency_id' (PO's currency). If the booking
         is quoted/booked in a different currency (e.g. USD booking on an NZD PO), the Odoo
         UI displays the amount with the wrong currency symbol and no conversion.
+
+        Fix: currency_field='freight_cost_currency_id' where freight_cost_currency_id is
+        a related field pointing to freight_tender_id.booking_id.currency_id — Odoo's
+        Monetary field requires a flat field name, not dot notation, so a dedicated
+        related currency field is the standard Odoo pattern.
         """
         field = self.env['purchase.order']._fields.get('freight_cost')
         self.assertIsNotNone(field, 'freight_cost field must exist on purchase.order')
@@ -68,10 +73,15 @@ class TestPoFormFields(TransactionCase):
             field.currency_field, 'currency_id',
             'freight_cost must not use the PO\'s currency_id — booking may be in a different currency',
         )
+        # Odoo Monetary requires a flat field name for currency_field (no dot notation).
+        # The standard pattern is a dedicated related currency field that traverses to
+        # the booking's currency.  Assert the field name is freight_cost_currency_id
+        # (or any name containing 'currency' but not the bare PO currency_id).
         self.assertIn(
-            'booking_id',
+            'freight_cost_currency',
             field.currency_field,
-            'freight_cost currency_field must traverse to the booking currency',
+            'freight_cost currency_field must reference a dedicated booking-currency field '
+            '(expected freight_cost_currency_id, got %r)' % field.currency_field,
         )
 
     def test_action_creates_tender(self):

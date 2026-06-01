@@ -10,14 +10,22 @@ Key structural points:
   - Package weight is totalWeight, volume is totalVolume
 """
 
-# Maps internal product type → (DSV product name, cargoType, containerType)
+# Maps internal product type / transport_mode → (DSV product name, cargoType, containerType)
+# Includes both DSV product-type codes (from quote API, e.g. 'AIR_EXPRESS') and the
+# Odoo transport_mode selection values (e.g. 'air', 'road') so that build_booking_payload
+# works correctly regardless of which code ends up on selected_quote.transport_mode.
 _PRODUCT_DSV_MAP = {
+    # DSV product-type codes (used when quoting via DSV API)
     'SEA_LCL':    ('Sea', 'LCL', None),
     'SEA_FCL_20': ('Sea', 'FCL', '20GP'),
     'SEA_FCL_40': ('Sea', 'FCL', '40GP'),
     'AIR_EXPRESS': ('Air', None, None),
     'ROAD':        ('Road', None, None),
     'RAIL':        ('Rail', None, None),
+    # Odoo transport_mode selection values (uppercased in build_booking_payload)
+    # 'SEA_LCL' / 'SEA_FCL' already handled above via .upper()
+    'SEA_FCL':    ('Sea', 'FCL', None),   # generic FCL without container subtype
+    'AIR':        ('Air', None, None),    # plain 'air' mode — no cargoType for air
 }
 
 

@@ -29,8 +29,12 @@ class TestDsvWebhookDispatch(TransactionCase):
             self._adapter().handle_webhook(body)
         mock_handler.assert_called_once()
         call_args = mock_handler.call_args
-        self.assertEqual(call_args.args[1].id, self.carrier.id)   # args[0]=self (booking recordset), args[1]=carrier
-        self.assertEqual(call_args.args[2], body)                   # args[2]=body
+        # When patch.object replaces a class attribute with a plain MagicMock, the
+        # mock is NOT a descriptor — Python calls mock(carrier, body) directly,
+        # so call_args.args does NOT include 'self' (the booking recordset).
+        # args[0] = carrier, args[1] = body.
+        self.assertEqual(call_args.args[0].id, self.carrier.id)   # args[0]=carrier
+        self.assertEqual(call_args.args[1], body)                   # args[1]=body
 
     def test_handle_webhook_base_noop(self):
         """FreightAdapterBase.handle_webhook() is a no-op — must not raise."""

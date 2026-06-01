@@ -59,8 +59,17 @@ class TestDsvLabel(TransactionCase):
             result = adapter.get_label(self.booking)
         self.assertEqual(result, fake_pdf)
         call_kwargs = mock_get.call_args
-        self.assertIn('printFormat=Portrait1Label', str(call_kwargs),
-                      'get_label must pass printFormat=Portrait1Label as a query param')
+        # The adapter passes params as a dict to requests.get(), not as a raw
+        # query string in the URL.  Assert on the actual params dict rather than
+        # the str() representation (which uses key: value notation, not key=value).
+        actual_params = call_kwargs.kwargs.get('params') or (
+            call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
+        )
+        self.assertEqual(
+            actual_params,
+            {'printFormat': 'Portrait1Label'},
+            'get_label must pass params={"printFormat": "Portrait1Label"} to requests.get',
+        )
 
     def test_get_label_returns_none_on_404(self):
         """HTTP 404 → get_label returns None (not an error)."""

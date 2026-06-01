@@ -134,7 +134,9 @@ class TestEtaDriftDetection(TransactionCase):
         from datetime import timedelta
         from unittest.mock import patch
         self.booking.eta = self.orig_eta + timedelta(hours=2)
-        with patch.object(self.booking, '_queue_inward_order_update') as m:
+        # Patch on the class, not the record instance — Odoo 19 forbids setting
+        # attributes directly on ORM record objects ('read-only' error).
+        with patch.object(type(self.booking), '_queue_inward_order_update') as m:
             self.booking._check_inward_order_updates(self.orig_eta, '')
         m.assert_not_called()
 
@@ -142,20 +144,20 @@ class TestEtaDriftDetection(TransactionCase):
         from datetime import timedelta
         from unittest.mock import patch
         self.booking.eta = self.orig_eta + timedelta(hours=25)
-        with patch.object(self.booking, '_queue_inward_order_update') as m:
+        with patch.object(type(self.booking), '_queue_inward_order_update') as m:
             self.booking._check_inward_order_updates(self.orig_eta, '')
         m.assert_called_once()
 
     def test_update_queued_when_vessel_becomes_known(self):
         from unittest.mock import patch
         self.booking.vessel_name = 'MSC Oscar'
-        with patch.object(self.booking, '_queue_inward_order_update') as m:
+        with patch.object(type(self.booking), '_queue_inward_order_update') as m:
             self.booking._check_inward_order_updates(self.orig_eta, '')  # prev_vessel = ''
         m.assert_called_once()
 
     def test_no_update_when_vessel_was_already_known(self):
         from unittest.mock import patch
         self.booking.vessel_name = 'MSC Oscar'
-        with patch.object(self.booking, '_queue_inward_order_update') as m:
+        with patch.object(type(self.booking), '_queue_inward_order_update') as m:
             self.booking._check_inward_order_updates(self.orig_eta, 'MSC Oscar')
         m.assert_not_called()
