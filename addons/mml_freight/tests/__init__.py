@@ -1,3 +1,7 @@
+import odoo
+_STUB = getattr(odoo, "_stubbed", False)
+
+# Odoo-safe: TransactionCase subclasses, no module-level pytest/importlib exec
 from . import test_freight_responsibility
 from . import test_package_aggregation
 from . import test_carrier_eligibility
@@ -26,3 +30,12 @@ from . import test_contract_opportunity_cost
 from . import test_contract_aware_selection
 from . import test_contract_cron
 from . import test_freight_document_model
+from . import test_consolidated_pos
+from . import test_freight_service
+
+# Pure-Python: module-level pytest import or module-scope importlib exec
+if _STUB:
+    from . import test_booking_computed_fields
+    from . import test_freight_cost_product
+    from . import test_document_triggers
+    from . import test_po_attachment
