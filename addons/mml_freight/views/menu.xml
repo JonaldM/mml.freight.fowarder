@@ -2,7 +2,7 @@
 <odoo>
     <!-- Top-level app root — standalone tile, landing on Active Shipments kanban -->
     <menuitem id="menu_freight_root"
-              name="Freight"
+              name="MML Freight"
               sequence="50"
               action="action_freight_booking_active"
               groups="stock.group_stock_user"/>
