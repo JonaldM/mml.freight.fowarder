@@ -61,6 +61,31 @@ def _validate_dsv_download_url(url):
         return False
 
 
+def _parse_retry_after(header_value):
+    """Parse a Retry-After header into seconds (int) or None.
+
+    Per RFC 7231 the value is either an integer number of seconds or an
+    HTTP-date. Returns None when absent or unparseable.
+    """
+    if not header_value:
+        return None
+    header_value = header_value.strip()
+    if header_value.isdigit():
+        return int(header_value)
+    try:
+        from email.utils import parsedate_to_datetime
+        from datetime import datetime, timezone
+        retry_dt = parsedate_to_datetime(header_value)
+        if retry_dt is None:
+            return None
+        if retry_dt.tzinfo is None:
+            retry_dt = retry_dt.replace(tzinfo=timezone.utc)
+        delta = (retry_dt - datetime.now(timezone.utc)).total_seconds()
+        return max(0, int(delta))
+    except Exception:
+        return None
+
+
 _DSV_EVENT_STATE_MAP = {
     'BOOKING_CONFIRMED': 'confirmed',
     'CARGO_RECEIVED':    'cargo_ready',
@@ -99,10 +124,17 @@ class DsvGenericAdapter(FreightAdapterBase):
             'Content-Type':         'application/json',
         }
 
-    def _post_with_retry(self, url, payload, token, service='booking'):
-        """POST to DSV. Retries once on 401 after token refresh."""
+    def _post_with_retry(self, url, payload, token, service='booking', idempotent=False):
+        """POST to DSV.
+
+        On 401, replays the POST once after a token refresh ONLY when the call is
+        idempotent (quotes/tracking/documents). For non-idempotent calls (booking
+        create/confirm) we never auto-replay — a blind retry risks creating a
+        duplicate carrier booking. Booking calls instead refresh the token *before*
+        the POST (see create_booking/confirm_booking), so a 401 is not expected.
+        """
         resp = requests.post(url, json=payload, headers=self._headers(token, service), timeout=30)
-        if resp.status_code == 401:
+        if resp.status_code == 401 and idempotent:
             try:
                 token = refresh_token(self.carrier)
             except DsvAuthError:
@@ -132,7 +164,8 @@ class DsvGenericAdapter(FreightAdapterBase):
             payload = build_quote_payload(tender, product_type, mdm)
             quote_url = f'{_quote_base(self.carrier)}/quote/v1/quotes'
             try:
-                resp = self._post_with_retry(quote_url, payload, token, service='quote')
+                # Quotes are idempotent — safe to replay on 401 after token refresh.
+                resp = self._post_with_retry(quote_url, payload, token, service='quote', idempotent=True)
             except Exception as e:
                 _logger.error('DSV quote request failed (%s): %s', product_type, e)
                 results.append({'_error': True, 'error_message': str(e)[:500]})
@@ -177,6 +210,10 @@ class DsvGenericAdapter(FreightAdapterBase):
         """Create DSV draft booking (autobook=False). Raises UserError on any API failure."""
         from odoo.exceptions import UserError
         from odoo.addons.mml_freight_dsv.adapters.dsv_booking_builder import build_booking_payload
+        # get_token() already refreshes pre-emptively when within the expiry window,
+        # so the POST goes out with a fresh token. Crucially, _post_with_retry is
+        # called WITHOUT idempotent=True here: booking create is non-idempotent, so a
+        # blind 401 replay (which could create a duplicate booking) must never happen.
         try:
             token = get_token(self.carrier)
         except DsvAuthError as e:
@@ -235,6 +272,9 @@ class DsvGenericAdapter(FreightAdapterBase):
         bk_id = booking.carrier_booking_id
         if not bk_id:
             raise UserError('Cannot confirm booking: no carrier_booking_id set.')
+        # get_token() refreshes pre-emptively within the expiry window. _post_with_retry
+        # is called WITHOUT idempotent=True: booking confirm is non-idempotent, so a
+        # blind 401 replay (which could double-confirm) must never happen.
         try:
             token = get_token(self.carrier)
         except DsvAuthError as e:
@@ -282,6 +322,15 @@ class DsvGenericAdapter(FreightAdapterBase):
         except Exception as e:
             _logger.warning('DSV tracking GET failed for %s: %s', booking.name, e, exc_info=True)
             return []
+        if resp.status_code == 429:
+            # Rate limited — surface to the tracking cron so it stops this carrier's
+            # batch for the run instead of silently dropping. Honor Retry-After.
+            from odoo.addons.mml_freight.models.freight_booking import CarrierRateLimited
+            retry_after = _parse_retry_after(resp.headers.get('Retry-After'))
+            _logger.warning(
+                'DSV tracking HTTP 429 for %s (Retry-After=%s)', booking.name, retry_after,
+            )
+            raise CarrierRateLimited('DSV tracking rate limited', retry_after=retry_after)
         if not resp.ok:
             _logger.warning('DSV tracking HTTP %s for %s', resp.status_code, booking.name)
             return []

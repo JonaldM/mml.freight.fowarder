@@ -10,8 +10,8 @@ OrderConfirmation belong to the 3PL layer (stock_3pl_mainfreight in the
 mainfreight.3pl.intergration project) and are logged + ignored here.
 
 Auth: validates X-MF-Secret header against x_mf_webhook_secret on the carrier record.
-When x_mf_webhook_secret is not configured the request is accepted with a warning
-(permissive during onboarding). Set the secret before go-live.
+When x_mf_webhook_secret is not configured the request is REJECTED with HTTP 403
+(fail-closed). The secret must be set before go-live.
 
 Endpoint: POST /mainfreight/webhook
 (Configured in Mainfreight developer portal registration — not per-carrier)

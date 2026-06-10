@@ -23,6 +23,12 @@ Group 3 — cron_fetch_missing_documents() targeting logic:
 12. Delivered booking with docs but no POD doc → needs_pod = True
 13. Delivered booking with actual_rate == 0 → needs_invoice = True
 14. Booking with no carrier credentials → skipped entirely
+15. docs_fetch_pending flag targets a booking even when it already has docs.
+
+Group 4 — write() state transition flagging:
+write() must only set state and flag docs_fetch_pending on the
+arrived_port/delivered transition; it must NOT fetch documents/invoice in-band
+(that I/O moved to the cron to avoid holding row locks on slow carrier HTTP).
 """
 
 import sys
@@ -265,6 +271,7 @@ def _make_booking(
     booking.carrier_id = carrier or FakeCarrier(api_key='key123')
     booking.id = 1
     booking.document_ids = FakeDocumentSet(document_ids or [])
+    booking.docs_fetch_pending = False
 
     env = FakeEnv(adapter=adapter)
     booking.env = env
@@ -424,10 +431,10 @@ class TestAutoFetchInvoice:
 # ---------------------------------------------------------------------------
 
 # MAINTENANCE WARNING: _cron_needs() duplicates the targeting logic from
-# cron_fetch_missing_documents() in freight_booking.py (lines ~644-683).
-# Any change to that method's targeting conditions (doc_states list, needs_*
-# checks, credential detection) MUST be mirrored here, or Group 3 tests will
-# pass while covering stale behaviour.
+# cron_fetch_missing_documents() in freight_booking_cron.py.
+# Any change to that method's targeting conditions (doc_states list, the
+# docs_fetch_pending flag, needs_* checks, credential detection) MUST be
+# mirrored here, or Group 3 tests will pass while covering stale behaviour.
 def _cron_needs(booking):
     """Replicate the cron targeting logic from cron_fetch_missing_documents()."""
     doc_states = ['in_transit', 'arrived_port', 'customs', 'delivered']
@@ -442,6 +449,7 @@ def _cron_needs(booking):
     if not has_credentials:
         return {'skipped': True}
 
+    pending = getattr(booking, 'docs_fetch_pending', False)
     needs_docs = not booking.document_ids
     needs_pod = (
         booking.state == 'delivered' and
@@ -449,10 +457,16 @@ def _cron_needs(booking):
     )
     needs_invoice = booking.state == 'delivered' and booking.actual_rate == 0
 
-    if not (needs_docs or needs_pod or needs_invoice):
-        return {'needs_docs': False, 'needs_pod': False, 'needs_invoice': False}
+    if not (pending or needs_docs or needs_pod or needs_invoice):
+        return {
+            'pending': False,
+            'needs_docs': False,
+            'needs_pod': False,
+            'needs_invoice': False,
+        }
 
     return {
+        'pending': pending,
         'needs_docs': needs_docs,
         'needs_pod': needs_pod,
         'needs_invoice': needs_invoice,
@@ -478,7 +492,9 @@ class TestCronTargetingLogic:
             document_ids=[pod_doc, customs_doc],
         )
         result = _cron_needs(booking)
-        assert result == {'needs_docs': False, 'needs_pod': False, 'needs_invoice': False}
+        assert result == {
+            'pending': False, 'needs_docs': False, 'needs_pod': False, 'needs_invoice': False,
+        }
 
     # 12. Delivered with docs but no POD → needs_pod = True
     def test_delivered_no_pod_sets_needs_pod(self):
@@ -534,31 +550,83 @@ class TestCronTargetingLogic:
         assert result is not None
         assert result.get('skipped') is not True
 
+    # Pending flag targets a booking even when it already has documents.
+    # This closes the gap left by moving the fetch out of write(): an
+    # arrived_port booking with some docs but missing the customs/label subset
+    # would otherwise be skipped by the needs_* checks.
+    def test_pending_flag_targets_booking_with_existing_docs(self):
+        customs_doc = FakeFreightDocument(doc_type='customs')
+        booking = _make_booking(
+            state='arrived_port',
+            document_ids=[customs_doc],   # has docs → needs_docs False
+        )
+        booking.docs_fetch_pending = True
+        result = _cron_needs(booking)
+        assert result is not None
+        assert result.get('pending') is True
+
+    def test_no_pending_no_needs_is_not_actioned(self):
+        customs_doc = FakeFreightDocument(doc_type='customs')
+        booking = _make_booking(
+            state='arrived_port',
+            document_ids=[customs_doc],
+        )
+        booking.docs_fetch_pending = False
+        result = _cron_needs(booking)
+        # Targeted (returns a dict) but every action flag is False.
+        assert result == {
+            'pending': False, 'needs_docs': False, 'needs_pod': False, 'needs_invoice': False,
+        }
+
 
 # ---------------------------------------------------------------------------
 # Group 4 — write() state transition dispatch
 # ---------------------------------------------------------------------------
 
 class _IterableFreightBooking(FreightBooking):
-    """FreightBooking subclass that makes a single instance iterable.
+    """FreightBooking subclass that makes a single instance iterable/filterable.
 
-    write() uses ``for rec in self`` to snapshot prev_states.  Python
-    resolves special methods (__iter__) on the *type*, not the instance, so
-    we must define it at class level rather than patching the instance.
+    write() snapshots prev_states via ``for rec in self`` and selects records to
+    flag via ``self.filtered(...)``.  Python resolves special methods (__iter__)
+    on the *type*, not the instance, so they must be defined at class level.
+    ``filtered`` returns a 1- or 0-length list of self depending on the predicate.
     """
 
+    # When True the instance behaves as an empty recordset (falsy, iterates to nothing).
+    _is_empty = False
+
     def __iter__(self):
+        if self._is_empty:
+            return iter(())
         yield self
 
     def __len__(self):
-        return 1
+        return 0 if self._is_empty else 1
+
+    def __bool__(self):
+        return not self._is_empty
+
+    def filtered(self, fn):
+        # Mirror Odoo: return a recordset (a FreightBooking instance) so that
+        # super(FreightBooking, result).write(...) is valid. An unmatched predicate
+        # yields an empty (falsy) recordset rather than a plain list.
+        if fn(self):
+            return self
+        empty = _IterableFreightBooking.__new__(_IterableFreightBooking)
+        empty._is_empty = True
+        return empty
 
 
 class TestWriteStateTriggerDispatch:
-    """Tests that write() dispatches both helpers on state transitions."""
+    """write() must only set state + flag docs_fetch_pending — never fetch in-band.
 
-    def _make_booking_for_write(self, prev_state):
-        """Build an iterable FreightBooking with helpers patched."""
+    Fix: synchronous carrier document/invoice fetches were moved OUT of write()
+    (they held row locks on slow HTTP). write() now flags docs_fetch_pending on the
+    arrived_port/delivered transition; cron_fetch_missing_documents does the I/O.
+    """
+
+    def _make_booking_for_write(self, prev_state, pending=False):
+        """Build an iterable FreightBooking that records super().write() calls."""
         booking = _IterableFreightBooking.__new__(_IterableFreightBooking)
         booking.name = 'FB/2026/001'
         booking.state = prev_state
@@ -568,6 +636,7 @@ class TestWriteStateTriggerDispatch:
         booking.carrier_id = FakeCarrier(api_key='key123')
         booking.id = 1
         booking.document_ids = FakeDocumentSet([])
+        booking.docs_fetch_pending = pending
 
         env = FakeEnv(adapter=None)
         booking.env = env
@@ -577,6 +646,7 @@ class TestWriteStateTriggerDispatch:
             booking._chatter.append(body)
         )
 
+        # Guard rails: if write() ever calls the fetch helpers again, fail loudly.
         booking._auto_fetch_calls = []
         booking._invoice_calls = []
 
@@ -592,55 +662,78 @@ class TestWriteStateTriggerDispatch:
         booking._auto_fetch_invoice = fake_auto_invoice
         return booking
 
-    def test_delivered_transition_calls_auto_fetch_documents(self):
-        """write() to delivered must call _auto_fetch_documents(doc_types=None)."""
+    def test_delivered_transition_flags_pending_and_skips_fetch(self):
+        """write() to delivered flags docs_fetch_pending and does NOT fetch in-band."""
         from unittest.mock import patch
         booking = self._make_booking_for_write('arrived_port')
 
-        with patch('odoo.models.Model.write', return_value=True):
+        with patch('odoo.models.Model.write', return_value=True) as mock_write:
             booking.write({'state': 'delivered'})
 
-        assert booking._auto_fetch_calls == [None]
+        # No synchronous carrier I/O from write().
+        assert booking._auto_fetch_calls == []
+        assert booking._invoice_calls == []
+        # super().write was called to set the pending flag.
+        flag_calls = [c for c in mock_write.call_args_list
+                      if c.args and isinstance(c.args[-1], dict)
+                      and 'docs_fetch_pending' in c.args[-1]]
+        assert flag_calls, 'write() must set docs_fetch_pending via super().write'
+        assert flag_calls[-1].args[-1]['docs_fetch_pending'] is True
 
-    def test_delivered_transition_calls_auto_fetch_invoice(self):
-        """write() to delivered must also call _auto_fetch_invoice()."""
-        from unittest.mock import patch
-        booking = self._make_booking_for_write('arrived_port')
-
-        with patch('odoo.models.Model.write', return_value=True):
-            booking.write({'state': 'delivered'})
-
-        assert len(booking._invoice_calls) == 1
-
-    def test_arrived_port_transition_calls_fetch_documents_not_invoice(self):
-        """write() to arrived_port must call _auto_fetch_documents but NOT _auto_fetch_invoice."""
+    def test_arrived_port_transition_flags_pending_and_skips_fetch(self):
+        """write() to arrived_port flags docs_fetch_pending and does NOT fetch."""
         from unittest.mock import patch
         booking = self._make_booking_for_write('in_transit')
 
-        with patch('odoo.models.Model.write', return_value=True):
+        with patch('odoo.models.Model.write', return_value=True) as mock_write:
             booking.write({'state': 'arrived_port'})
 
-        assert booking._auto_fetch_calls == [['customs', 'packing_list', 'label']]
+        assert booking._auto_fetch_calls == []
         assert booking._invoice_calls == []
+        flag_calls = [c for c in mock_write.call_args_list
+                      if c.args and isinstance(c.args[-1], dict)
+                      and 'docs_fetch_pending' in c.args[-1]]
+        assert flag_calls and flag_calls[-1].args[-1]['docs_fetch_pending'] is True
 
-    def test_no_trigger_when_state_unchanged(self):
-        """write() must not call helpers when prev state equals new state."""
+    def test_no_flag_when_state_unchanged(self):
+        """write() must not re-flag when prev state equals new state."""
         from unittest.mock import patch
         booking = self._make_booking_for_write('delivered')  # already delivered
 
-        with patch('odoo.models.Model.write', return_value=True):
+        with patch('odoo.models.Model.write', return_value=True) as mock_write:
             booking.write({'state': 'delivered'})
 
         assert booking._auto_fetch_calls == []
         assert booking._invoice_calls == []
+        flag_calls = [c for c in mock_write.call_args_list
+                      if c.args and isinstance(c.args[-1], dict)
+                      and 'docs_fetch_pending' in c.args[-1]]
+        assert flag_calls == []
 
-    def test_non_state_write_does_not_trigger(self):
-        """write() with no state key must not call helpers."""
+    def test_no_flag_when_already_pending(self):
+        """write() must not re-flag a booking that is already pending."""
+        from unittest.mock import patch
+        booking = self._make_booking_for_write('in_transit', pending=True)
+
+        with patch('odoo.models.Model.write', return_value=True) as mock_write:
+            booking.write({'state': 'arrived_port'})
+
+        flag_calls = [c for c in mock_write.call_args_list
+                      if c.args and isinstance(c.args[-1], dict)
+                      and 'docs_fetch_pending' in c.args[-1]]
+        assert flag_calls == []
+
+    def test_non_state_write_does_not_flag(self):
+        """write() with no state key must not flag or fetch."""
         from unittest.mock import patch
         booking = self._make_booking_for_write('in_transit')
 
-        with patch('odoo.models.Model.write', return_value=True):
+        with patch('odoo.models.Model.write', return_value=True) as mock_write:
             booking.write({'actual_rate': 500.0})
 
         assert booking._auto_fetch_calls == []
         assert booking._invoice_calls == []
+        flag_calls = [c for c in mock_write.call_args_list
+                      if c.args and isinstance(c.args[-1], dict)
+                      and 'docs_fetch_pending' in c.args[-1]]
+        assert flag_calls == []

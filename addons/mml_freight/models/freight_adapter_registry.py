@@ -40,19 +40,34 @@ class FreightAdapterRegistry(models.AbstractModel):
 
     @api.model
     def get_eligible_carriers(self, tender):
-        """Return delivery.carrier records eligible for the given tender."""
+        """Return delivery.carrier records eligible for the given tender.
+
+        Carriers whose adapter is a known stub (``adapter.is_stub``) are skipped:
+        a stub raises on every operation, so including one would blow up the tender
+        mid-fan-out. This keeps a half-built carrier (e.g. K+N in production mode)
+        from being tendered to even if someone enables it.
+        """
         all_carriers = self.env['delivery.carrier'].search([
             ('active', '=', True),
             ('auto_tender', '=', True),
         ])
         eligible = self.env['delivery.carrier']
         for carrier in all_carriers:
-            if carrier.is_eligible(
+            if not carrier.is_eligible(
                 tender.origin_country_id,
                 tender.dest_country_id,
                 tender.chargeable_weight_kg,
                 tender.contains_dg,
                 tender.freight_mode_preference or 'any',
             ):
-                eligible |= carrier
+                continue
+            adapter = self.get_adapter(carrier)
+            if adapter is None or getattr(adapter, 'is_stub', False):
+                if adapter is not None:
+                    _logger.warning(
+                        'Skipping carrier %s (%s): adapter is a stub — not tendering.',
+                        carrier.name, carrier.delivery_type,
+                    )
+                continue
+            eligible |= carrier
         return eligible

@@ -10,6 +10,11 @@ class FreightAdapterBase(ABC):
     get_label is optional and returns None by default.
     """
 
+    # Stub adapters (scaffolds whose operations raise NotImplementedError) set
+    # this True so the registry skips them before dispatch — enabling such a
+    # carrier must never raise mid-tender. See FreightAdapterRegistry.
+    is_stub = False
+
     def __init__(self, carrier, env):
         self.carrier = carrier
         self.env = env

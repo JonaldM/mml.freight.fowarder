@@ -39,9 +39,16 @@ class FreightBookingWebhook(models.Model):
         if not invoice_data:
             _logger.info('DSV invoice webhook: get_invoice returned None for booking %s', booking.name)
             return
+        amount = invoice_data.get('amount')
+        if amount is None:
+            _logger.info(
+                'DSV invoice webhook: invoice for booking %s has no amount — skipping',
+                booking.name,
+            )
+            return
         # Idempotency guard: skip write and chatter if actual_rate already matches.
         # Prevents duplicate chatter notes on DSV webhook retries.
-        if booking.actual_rate and abs(booking.actual_rate - invoice_data['amount']) < 0.01:
+        if booking.actual_rate and abs(booking.actual_rate - amount) < 0.01:
             _logger.info(
                 'DSV invoice webhook: actual_rate already matches (%.2f) for booking %s — skipping',
                 booking.actual_rate, booking.name,
@@ -51,13 +58,13 @@ class FreightBookingWebhook(models.Model):
             [('name', '=', invoice_data.get('currency', 'NZD'))], limit=1,
         ) or booking.currency_id
         booking.write({
-            'actual_rate': invoice_data['amount'],
+            'actual_rate': amount,
             'currency_id': curr.id if curr else booking.currency_id.id,
         })
         booking.message_post(
             body=(
                 f"DSV invoice webhook: actual rate updated to "
-                f"{invoice_data['amount']:.2f} {invoice_data.get('currency', '')} "
+                f"{amount:.2f} {invoice_data.get('currency', '')} "
                 f"(DSV Invoice #{invoice_data.get('dsv_invoice_id', 'N/A')})"
             )
         )

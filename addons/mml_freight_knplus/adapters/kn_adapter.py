@@ -22,6 +22,10 @@ class KnAdapter(FreightAdapterBase):
     See: fowarder.docs/KN-API-Integration-Guide.md — Onboarding Checklist.
     """
 
+    # This live adapter is a scaffold — every method raises. Flag it so the
+    # freight registry never dispatches a tender to a production K+N carrier.
+    is_stub = True
+
     def request_quote(self, tender):
         """K+N quote API not confirmed available.
 

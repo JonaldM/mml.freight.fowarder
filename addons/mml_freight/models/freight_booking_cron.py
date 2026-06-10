@@ -1,9 +1,17 @@
 from odoo import models, api
-from odoo.addons.mml_freight.models.freight_booking import BOOKING_STATES
+from odoo.addons.mml_freight.models.freight_booking import BOOKING_STATES, CarrierRateLimited
 import dateutil.parser
 import logging
 
 _logger = logging.getLogger(__name__)
+
+# Postgres advisory-lock key for cron_sync_tracking. Any stable 64-bit int works;
+# this guards two overlapping cron workers from double-hitting carriers.
+_TRACKING_SYNC_LOCK_KEY = 920130411
+
+# Cap how many bookings one cron run will sync, so a rate-limited or slow carrier
+# can't make a single run hang on an unbounded batch.
+_TRACKING_SYNC_BATCH_LIMIT = 200
 
 
 class FreightBookingCron(models.Model):
@@ -11,18 +19,25 @@ class FreightBookingCron(models.Model):
 
     @api.model
     def cron_fetch_missing_documents(self):
-        """Cron: daily safety net — fetch missing documents and invoices.
+        """Cron: safety net — fetch documents and invoices out-of-band.
+
+        This cron is the ONLY place carrier document/invoice fetches run: write()
+        no longer does synchronous carrier HTTP (it would hold row locks on slow
+        network). write() instead flags ``docs_fetch_pending`` on the
+        arrived_port/delivered transition, which this cron picks up.
 
         Targets bookings where ALL of:
         - State in ['in_transit', 'arrived_port', 'customs', 'delivered']
         - Carrier has Mainfreight API key or DSV client ID configured
         - At least one of:
+            - docs_fetch_pending flag is set (a recent state transition)
             - No freight.document records at all
             - State is 'delivered' and no POD document exists
             - State is 'delivered' and actual_rate == 0 (no invoice fetched)
 
-        Runs _auto_fetch_documents() and/or _auto_fetch_invoice() as needed.
-        Silent no-op per booking if API returns nothing new.
+        Runs _auto_fetch_documents() and/or _auto_fetch_invoice() as needed and
+        clears the pending flag afterwards. Silent no-op per booking if the API
+        returns nothing new.
         """
         doc_states = ['in_transit', 'arrived_port', 'customs', 'delivered']
         bookings = self.search([('state', 'in', doc_states)])
@@ -40,6 +55,7 @@ class FreightBookingCron(models.Model):
             if not has_credentials:
                 continue
 
+            pending = booking.docs_fetch_pending
             needs_docs = not booking.document_ids
             needs_pod = (
                 booking.state == 'delivered' and
@@ -47,47 +63,96 @@ class FreightBookingCron(models.Model):
             )
             needs_invoice = booking.state == 'delivered' and booking.actual_rate == 0
 
-            if not (needs_docs or needs_pod or needs_invoice):
+            if not (pending or needs_docs or needs_pod or needs_invoice):
                 continue
 
+            # On the arrived_port transition only the customs/packing_list/label
+            # subset is expected; delivered (and the catch-up cases) fetch all types.
+            if pending and booking.state == 'arrived_port':
+                doc_types = ['customs', 'packing_list', 'label']
+            else:
+                doc_types = None
+
             try:
-                if needs_docs or needs_pod:
+                if pending or needs_docs or needs_pod:
                     booking.with_context(_auto_fetch_in_progress=True)._auto_fetch_documents(
-                        doc_types=None,
+                        doc_types=doc_types,
                     )
-                if needs_invoice:
+                if needs_invoice or (pending and booking.state == 'delivered'):
                     booking.with_context(_auto_fetch_in_progress=True)._auto_fetch_invoice()
             except Exception as exc:
                 _logger.error(
                     'cron_fetch_missing_documents: error on booking %s: %s',
                     booking.name, exc,
                 )
+            finally:
+                # Clear the flag whether or not the fetch found anything — the
+                # needs_* fallbacks still re-target this booking on a later run if
+                # documents/invoice remain genuinely missing.
+                if booking.docs_fetch_pending:
+                    booking.with_context(_auto_fetch_in_progress=True).write(
+                        {'docs_fetch_pending': False}
+                    )
 
     @api.model
     def cron_sync_tracking(self):
-        """Cron: sync tracking for all active bookings.
+        """Cron: sync tracking for active bookings.
 
-        Guard against concurrent cron runs: invalidate_recordset() + state re-check
-        before processing each booking. Pattern copied from stock_3pl_core
-        _process_outbound_queue. Prevents redundant DSV API calls when two cron
-        instances overlap.
+        Hardening:
+        * Job mutex — a Postgres session advisory lock (pg_try_advisory_lock)
+          ensures two overlapping cron workers never double-hit carriers. If the
+          lock is already held, this run exits immediately.
+        * Batch cap — at most ``_TRACKING_SYNC_BATCH_LIMIT`` bookings per run so a
+          slow/rate-limited carrier can't make one run hang on an unbounded batch.
+        * 429 handling — when a carrier returns HTTP 429 (CarrierRateLimited) we
+          stop syncing that carrier for the rest of the run (honoring Retry-After
+          if present) rather than silently dropping every booking under it.
+
+        Per-booking, invalidate_recordset() + state re-check still guards against a
+        state change between the search() and the sync.
         """
-        active_states = ['confirmed', 'cargo_ready', 'picked_up', 'in_transit', 'arrived_port', 'customs']
-        bookings = self.search([('state', 'in', active_states)])
-        for booking in bookings:
-            # Re-read from DB — another cron instance or user action may have
-            # changed state since the initial search().
-            booking.invalidate_recordset()
-            if booking.state not in active_states:
-                _logger.info(
-                    'cron_sync_tracking: skipping booking %s (state=%s, changed since fetch)',
-                    booking.name, booking.state,
-                )
-                continue
-            try:
-                booking._sync_tracking()
-            except Exception as e:
-                _logger.error('Tracking sync failed for booking %s: %s', booking.name, e)
+        # Job mutex: skip the run entirely if another worker holds the lock.
+        self.env.cr.execute('SELECT pg_try_advisory_lock(%s)', [_TRACKING_SYNC_LOCK_KEY])
+        if not self.env.cr.fetchone()[0]:
+            _logger.info('cron_sync_tracking: another run holds the advisory lock — skipping.')
+            return
+        try:
+            active_states = ['confirmed', 'cargo_ready', 'picked_up', 'in_transit', 'arrived_port', 'customs']
+            bookings = self.search(
+                [('state', 'in', active_states)], limit=_TRACKING_SYNC_BATCH_LIMIT,
+            )
+            # Carrier ids that returned 429 this run — skip their remaining bookings.
+            rate_limited_carriers = set()
+            for booking in bookings:
+                # Re-read from DB — another cron instance or user action may have
+                # changed state since the initial search().
+                booking.invalidate_recordset()
+                if booking.state not in active_states:
+                    _logger.info(
+                        'cron_sync_tracking: skipping booking %s (state=%s, changed since fetch)',
+                        booking.name, booking.state,
+                    )
+                    continue
+                if booking.carrier_id.id in rate_limited_carriers:
+                    _logger.info(
+                        'cron_sync_tracking: skipping booking %s — carrier %s rate-limited this run',
+                        booking.name, booking.carrier_id.id,
+                    )
+                    continue
+                try:
+                    booking._sync_tracking()
+                except CarrierRateLimited as rl:
+                    rate_limited_carriers.add(booking.carrier_id.id)
+                    _logger.warning(
+                        'cron_sync_tracking: carrier %s returned 429 (Retry-After=%s) — '
+                        'stopping that carrier for this run.',
+                        booking.carrier_id.id, rl.retry_after,
+                    )
+                except Exception as e:
+                    _logger.error('Tracking sync failed for booking %s: %s', booking.name, e)
+        finally:
+            # Release the advisory lock even if the batch raised.
+            self.env.cr.execute('SELECT pg_advisory_unlock(%s)', [_TRACKING_SYNC_LOCK_KEY])
 
     def _sync_tracking(self):
         """Sync tracking events from carrier adapter; auto-advance state; detect ETA drift."""

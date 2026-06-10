@@ -150,20 +150,41 @@ class FreightTender(models.Model):
         return records
 
     @api.depends('package_line_ids.weight_kg', 'package_line_ids.volume_m3',
-                 'package_line_ids.quantity', 'package_line_ids.is_dangerous')
+                 'package_line_ids.quantity', 'package_line_ids.is_dangerous',
+                 'freight_mode_preference')
     def _compute_totals(self):
         for t in self:
             lines = t.package_line_ids
             total_weight = sum(lines.mapped('weight_kg'))
             total_vol = sum(lines.mapped('volume_m3'))
             total_qty = sum(lines.mapped('quantity'))
-            volumetric_weight = total_vol * 333
+            # Volumetric (dimensional) weight divisor depends on freight mode.
+            # Air/express: 333 kg/m3 (IATA 1:6000 cm3/kg). Sea LCL: 1000 kg/m3
+            # (1 tonne per m3 — the standard W/M revenue-tonne basis). Road has
+            # no universal volumetric basis here; fall back to actual weight only.
+            divisor = self._volumetric_divisor(t.freight_mode_preference or 'any')
+            volumetric_weight = total_vol * divisor if divisor else 0.0
             t.total_weight_kg = total_weight
             t.total_volume_m3 = total_vol
             t.total_cbm = total_vol
             t.total_packages = total_qty
             t.chargeable_weight_kg = max(total_weight, volumetric_weight)
             t.contains_dg = any(lines.mapped('is_dangerous'))
+
+    @staticmethod
+    def _volumetric_divisor(freight_mode):
+        """Volumetric weight divisor (kg/m3) for the given freight mode.
+
+        air/express → 333 (IATA), sea → 1000 (W/M revenue tonne), road → None
+        (no volumetric uplift). 'any' defaults to the air basis (333) since that
+        is the most conservative — it never under-states chargeable weight.
+        """
+        return {
+            'air': 333,
+            'sea': 1000,
+            'road': None,
+            'any': 333,
+        }.get(freight_mode, 333)
 
     @api.depends('po_ids')
     def _compute_consolidation(self):
@@ -218,6 +239,16 @@ class FreightTender(models.Model):
                 results = adapter.request_quote(self)
                 if results:
                     for i, result in enumerate(results):
+                        # Adapter error sentinel — never write rates or count as received.
+                        # A failed carrier call must not become a $0 winning quote.
+                        if result.get('_error'):
+                            if i == 0:
+                                quote.write({
+                                    'state': 'error',
+                                    'error_message': (result.get('error_message') or '')[:500],
+                                })
+                            # For i > 0, do not create a phantom quote record for the error.
+                            continue
                         target_quote = quote if i == 0 else self.env['freight.tender.quote'].create({
                             'tender_id': self.id,
                             'carrier_id': carrier.id,

@@ -58,7 +58,14 @@ class FreightWebhookController(http.Controller):
 
         _logger.info('Freight webhook validated for carrier %s', carrier_id)
 
-        body = request.jsonrequest or {}
+        # request.jsonrequest was removed in Odoo 19 — use get_json_data().
+        # Body already passed HMAC validation above; guard against a malformed
+        # (but validly-signed) payload so the handler never 500s.
+        try:
+            body = request.get_json_data() or {}
+        except Exception:
+            _logger.warning('Freight webhook: invalid JSON body for carrier %s', carrier_id)
+            return {'status': 'ok'}
         registry = request.env['freight.adapter.registry']
         adapter = registry.get_adapter(carrier.sudo())
         if adapter:

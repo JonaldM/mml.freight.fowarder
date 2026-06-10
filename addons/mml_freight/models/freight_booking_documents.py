@@ -265,15 +265,21 @@ class FreightBookingDocuments(models.Model):
             invoice_data = adapter.get_invoice(self)
             if not invoice_data:
                 return False
+            amount = invoice_data.get('amount')
+            if amount is None:
+                _logger.info(
+                    'Invoice fetch for booking %s returned no amount — skipping', self.name,
+                )
+                return False
             curr = self.env['res.currency'].search(
                 [('name', '=', invoice_data.get('currency', 'NZD'))], limit=1,
             ) or self.currency_id
             self.write({
-                'actual_rate': invoice_data['amount'],
+                'actual_rate': amount,
                 'currency_id': curr.id if curr else self.currency_id.id,
             })
             inv_ref = invoice_data.get('carrier_invoice_ref', 'N/A')
-            amount_str = f"{invoice_data['amount']:.2f} {invoice_data.get('currency', '')}"
+            amount_str = f"{amount:.2f} {invoice_data.get('currency', '')}"
             self.message_post(
                 body=f'Freight cost confirmed: {amount_str} ({self.carrier_id.name} invoice {inv_ref})',
                 message_type='comment',
@@ -306,18 +312,21 @@ class FreightBookingDocuments(models.Model):
         invoice_data = adapter.get_invoice(self)
         if not invoice_data:
             raise UserError('No invoice available for this shipment yet. Try again later.')
+        amount = invoice_data.get('amount')
+        if amount is None:
+            raise UserError('Carrier invoice has no amount yet. Try again later.')
         curr = self.env['res.currency'].search(
             [('name', '=', invoice_data.get('currency', 'NZD'))], limit=1,
         ) or self.currency_id
         self.write({
-            'actual_rate': invoice_data['amount'],
+            'actual_rate': amount,
             'currency_id': curr.id if curr else self.currency_id.id,
         })
         inv_ref = (
             invoice_data.get('carrier_invoice_ref')
             or invoice_data.get('dsv_invoice_id', 'N/A')
         )
-        amount_str = f"{invoice_data['amount']:.2f} {invoice_data.get('currency', '')}"
+        amount_str = f"{amount:.2f} {invoice_data.get('currency', '')}"
         self.message_post(
             body=f'Freight cost confirmed: {amount_str} (invoice {inv_ref})',
             message_type='comment',

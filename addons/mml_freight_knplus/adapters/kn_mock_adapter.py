@@ -24,6 +24,13 @@ class KnMockAdapter(FreightAdapterBase):
     def _sandbox(self):
         return getattr(self.carrier, 'x_knplus_environment', 'sandbox') == 'sandbox'
 
+    @property
+    def is_stub(self):
+        """A K+N carrier is only safe in sandbox (canned responses). In production
+        this mock delegates to KnAdapter, whose every method raises — so report
+        stub=True there and let the registry skip the carrier before dispatch."""
+        return not self._sandbox()
+
     def _live(self):
         """Return a KnAdapter instance for delegation in production mode."""
         from odoo.addons.mml_freight_knplus.adapters.kn_adapter import KnAdapter

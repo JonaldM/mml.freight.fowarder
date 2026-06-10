@@ -1,0 +1,4 @@
+# Never commit DSV API credentials or secrets.
+# Credentials belong in ir.config_parameter, not files.
+secret.txt
+*.secret

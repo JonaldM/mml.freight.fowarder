@@ -9,6 +9,19 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+class CarrierRateLimited(Exception):
+    """Raised by an adapter when a carrier returns HTTP 429 (Too Many Requests).
+
+    Carries the optional ``retry_after`` (seconds, parsed from the Retry-After
+    header) so the tracking-sync cron can stop hammering that carrier for the
+    rest of the run instead of silently dropping the batch.
+    """
+
+    def __init__(self, message='', retry_after=None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 BOOKING_STATES = [
     ('draft', 'Draft'),
     ('confirmed', 'Confirmed'),
@@ -143,6 +156,14 @@ class FreightBooking(models.Model):
         'freight.tracking.event', 'booking_id', string='Tracking Events',
     )
     document_ids = fields.One2many('freight.document', 'booking_id', string='Documents')
+    docs_fetch_pending = fields.Boolean(
+        'Document Fetch Pending',
+        default=False,
+        copy=False,
+        help='Set when the booking enters arrived_port/delivered. The document-fetch '
+             'cron picks these up out-of-band so write() never blocks on slow carrier '
+             'HTTP while holding row locks. Cleared once the fetch runs.',
+    )
     label_attachment_id = fields.Many2one(
         'ir.attachment', string='Label', ondelete='set null',
     )
@@ -295,18 +316,18 @@ class FreightBooking(models.Model):
         return True
 
     def write(self, vals):
-        """Override write to trigger document fetch on key state transitions.
+        """Override write to flag document fetch on key state transitions.
 
-        arrived_port → fetch customs, packing_list, label documents
-        delivered    → fetch all document types + freight invoice
+        arrived_port / delivered → mark ``docs_fetch_pending`` so the
+        ``cron_fetch_missing_documents`` safety-net cron fetches documents and
+        (for delivered) the freight invoice out-of-band.
 
-        API failures post a chatter warning but never block the state transition.
-        The cron safety net will retry any failed fetches.
+        Document/invoice fetches are deliberately NOT done here: they fire
+        synchronous multi-call carrier HTTP, and doing that inside write() holds
+        row locks on slow network — including on the webhook-driven path. write()
+        now only sets state (+ the pending flag); no carrier I/O happens in-band.
         """
         prev_states = {rec.id: rec.state for rec in self}
-
-        if self.env.context.get('_auto_fetch_in_progress'):
-            return super().write(vals)
 
         result = super().write(vals)
 
@@ -314,52 +335,11 @@ class FreightBooking(models.Model):
         if new_state not in ('arrived_port', 'delivered'):
             return result
 
-        for rec in self:
-            prev = prev_states.get(rec.id)
-            if prev == new_state:
-                continue  # no real transition
-
-            if new_state == 'arrived_port':
-                try:
-                    rec.with_context(_auto_fetch_in_progress=True)._auto_fetch_documents(
-                        doc_types=['customs', 'packing_list', 'label'],
-                    )
-                except Exception as exc:
-                    _logger.warning(
-                        'Auto-fetch documents failed on transition to %s for booking %s: %s',
-                        new_state, rec.name, exc,
-                    )
-                    rec.message_post(
-                        body=f'Auto-fetch failed on transition to {new_state}, will retry via cron.',
-                        message_type='comment',
-                        subtype_xmlid='mail.mt_note',
-                    )
-            elif new_state == 'delivered':
-                try:
-                    rec.with_context(_auto_fetch_in_progress=True)._auto_fetch_documents(
-                        doc_types=None,
-                    )
-                except Exception as exc:
-                    _logger.warning(
-                        'Auto-fetch documents failed on transition to %s for booking %s: %s',
-                        new_state, rec.name, exc,
-                    )
-                    rec.message_post(
-                        body=f'Auto-fetch failed on transition to {new_state}, will retry via cron.',
-                        message_type='comment',
-                        subtype_xmlid='mail.mt_note',
-                    )
-                try:
-                    rec.with_context(_auto_fetch_in_progress=True)._auto_fetch_invoice()
-                except Exception as exc:
-                    _logger.warning(
-                        'Auto-fetch invoice failed on transition to %s for booking %s: %s',
-                        new_state, rec.name, exc,
-                    )
-                    rec.message_post(
-                        body='Invoice fetch failed on delivery transition, will retry via cron.',
-                        message_type='comment',
-                        subtype_xmlid='mail.mt_note',
-                    )
+        to_flag = self.filtered(
+            lambda rec: prev_states.get(rec.id) != new_state and not rec.docs_fetch_pending
+        )
+        if to_flag:
+            # Direct super().write to avoid recursing through this override.
+            super(FreightBooking, to_flag).write({'docs_fetch_pending': True})
 
         return result
