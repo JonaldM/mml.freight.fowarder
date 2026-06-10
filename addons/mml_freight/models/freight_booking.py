@@ -75,8 +75,8 @@ class FreightBooking(models.Model):
         string='Purchase Orders',
     )
 
-    carrier_booking_id = fields.Char('Carrier Booking Ref', tracking=True)
-    carrier_shipment_id = fields.Char('Carrier Shipment ID')
+    carrier_booking_id = fields.Char('Carrier Booking Ref', tracking=True, index=True)
+    carrier_shipment_id = fields.Char('Carrier Shipment ID', index=True)
     carrier_tracking_url = fields.Char('Tracking URL')
 
     currency_id = fields.Many2one('res.currency', required=True)

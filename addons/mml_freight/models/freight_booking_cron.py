@@ -13,6 +13,11 @@ _TRACKING_SYNC_LOCK_KEY = 920130411
 # can't make a single run hang on an unbounded batch.
 _TRACKING_SYNC_BATCH_LIMIT = 200
 
+# Cap how many bookings one document-fetch run will process. Same rationale as
+# the tracking-sync cap: a slow carrier API must not make a single run hang on an
+# unbounded batch. Remaining bookings are picked up on the next scheduled run.
+_DOC_FETCH_BATCH_LIMIT = 100
+
 
 class FreightBookingCron(models.Model):
     _inherit = 'freight.booking'
@@ -40,7 +45,9 @@ class FreightBookingCron(models.Model):
         returns nothing new.
         """
         doc_states = ['in_transit', 'arrived_port', 'customs', 'delivered']
-        bookings = self.search([('state', 'in', doc_states)])
+        bookings = self.search(
+            [('state', 'in', doc_states)], limit=_DOC_FETCH_BATCH_LIMIT,
+        )
 
         for booking in bookings:
             booking.invalidate_recordset()

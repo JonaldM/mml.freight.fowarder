@@ -19,6 +19,7 @@
     'uninstall_hook': 'uninstall_hook',
     'data': [
         'security/ir.model.access.csv',
+        'security/freight_record_rules.xml',
         'data/ir_sequence.xml',
         'data/ir_cron.xml',
         'views/freight_carrier_contract_views.xml',

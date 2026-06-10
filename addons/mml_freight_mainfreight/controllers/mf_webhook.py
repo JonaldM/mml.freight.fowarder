@@ -58,23 +58,26 @@ class MFWebhookController(http.Controller):
         """Mainfreight Subscription API webhook receiver.
 
         Security notes:
-        - Auth validation TBC — implement after Mainfreight rep confirms method.
-        - IP whitelist is the fallback until confirmed.
+        - Authenticate first, parse second: the carrier lookup and X-MF-Secret
+          validation run before the body is parsed. Unauthenticated requests are
+          rejected with HTTP 403 (fail-closed) and never reach body parsing.
         - Deduplication on messageId (if present) or SHA-256 of body.
-        - Returns HTTP 200 for all known message types to prevent retries.
+        - Returns HTTP 200 for authenticated known message types to prevent retries.
         - Body NOT logged to avoid PII leakage.
         """
-        body_bytes = request.httprequest.get_data()
-
-        body = request.get_json_data()
-        if not isinstance(body, dict):
-            _logger.warning('MF webhook: unexpected payload type %s', type(body).__name__)
-            return {'status': 'ok'}
-
+        # Authenticate FIRST, parse the body SECOND. The carrier lookup and the
+        # X-MF-Secret validation must both run before get_json_data() so an
+        # unauthenticated caller never triggers body parsing or any further work.
         carrier = _find_carrier(request.env)
         if not carrier:
-            _logger.warning('MF webhook: no active mainfreight carrier configured.')
-            return {'status': 'ok'}
+            # Fail closed: with no carrier configured there is no secret to
+            # validate against, so the request cannot be authenticated. Reject
+            # with 403 rather than acknowledging with 200.
+            _logger.warning('MF webhook: no active mainfreight carrier configured — rejecting.')
+            return request.make_json_response(
+                {'error': 'Webhook authentication not configured'},
+                status=403,
+            )
 
         # Auth: validate X-MF-Secret header when x_mf_webhook_secret is configured.
         # If secret is unset, reject with 403 (must configure before go-live).
@@ -100,6 +103,13 @@ class MFWebhookController(http.Controller):
                 {'error': 'Webhook authentication not configured'},
                 status=403,
             )
+
+        # Authentication has succeeded — now it is safe to parse the body.
+        body_bytes = request.httprequest.get_data()
+        body = request.get_json_data()
+        if not isinstance(body, dict):
+            _logger.warning('MF webhook: unexpected payload type %s', type(body).__name__)
+            return {'status': 'ok'}
 
         # Extract message metadata only after authentication succeeds.
         message_type = body.get('messageType') or body.get('MessageType') or 'unknown'

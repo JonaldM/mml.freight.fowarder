@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Multi-company record rules.
+
+         Scope freight records to the user's allowed companies so a user in
+         company A cannot read or write company B's data.
+
+         Only freight.tender carries an own company_id field, so it is the only
+         model that can be company-scoped at the record-rule level. company_id is
+         required=True on the tender (it always has a company, never False), so a
+         strict [('company_id', 'in', company_ids)] domain is correct here.
+
+         The other freight models (freight.booking, freight.tender.quote,
+         freight.tender.package, freight.tender.quote, freight.document,
+         freight.tracking.event, freight.webhook.event, freight.carrier.contract)
+         do NOT define a company_id field, so a company_id-based record rule would
+         reference a non-existent column and fail at install. They inherit company
+         context indirectly via their parent tender/booking. Add company_id to
+         those models first if they need direct record-rule isolation. -->
+    <record id="rule_freight_tender_company" model="ir.rule">
+        <field name="name">Freight Tender: multi-company</field>
+        <field name="model_id" ref="model_freight_tender"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+</odoo>
