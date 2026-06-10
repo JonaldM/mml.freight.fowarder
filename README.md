@@ -29,7 +29,7 @@ See `docs/plans/roq-freight-interface-contract.md` for the full integration spec
 |--------|---------|---------|
 | `mml_freight` | Core orchestrator — tender, quote, booking, tracking models + adapter interface | Required |
 | `mml_freight_dsv` | DSV Generic (Road/Air/Sea/Rail) and DSV XPress adapters | Required for DSV |
-| `mml_freight_knplus` | K+N (Kuehne+Nagel) adapter — mock/live delegation, credential fields, webhook receiver | Optional |
+| `mml_freight_knplus` | K+N (Kuehne+Nagel) adapter — **SCAFFOLD ONLY**: the live adapter raises on every operation and the webhook is an unauthenticated stub (fails closed). It is excluded from carrier eligibility (`is_stub`) — do **not** enable a K+N carrier in production | Dormant |
 | `mml_freight_mainfreight` | Mainfreight A&O adapter — tracking-only (no quote/booking API), webhook receiver, dedicated cron | Optional |
 | `mml_freight_demo` | Demo carriers, supplier, products, and a ready-to-tender PO | Dev/staging only |
 
